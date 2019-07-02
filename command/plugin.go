@@ -20,6 +20,7 @@ import (
 	amazonebsvolumebuilder "github.com/hashicorp/packer/builder/amazon/ebsvolume"
 	amazoninstancebuilder "github.com/hashicorp/packer/builder/amazon/instance"
 	azurearmbuilder "github.com/hashicorp/packer/builder/azure/arm"
+	azuredtlbuilder "github.com/hashicorp/packer/builder/azure/dtl"
 	cloudstackbuilder "github.com/hashicorp/packer/builder/cloudstack"
 	digitaloceanbuilder "github.com/hashicorp/packer/builder/digitalocean"
 	dockerbuilder "github.com/hashicorp/packer/builder/docker"
@@ -101,6 +102,7 @@ var Builders = map[string]packer.Builder{
 	"amazon-ebsvolume":    new(amazonebsvolumebuilder.Builder),
 	"amazon-instance":     new(amazoninstancebuilder.Builder),
 	"azure-arm":           new(azurearmbuilder.Builder),
+	"azure-dtl":           new(azuredtlbuilder.Builder),
 	"cloudstack":          new(cloudstackbuilder.Builder),
 	"digitalocean":        new(digitaloceanbuilder.Builder),
 	"docker":              new(dockerbuilder.Builder),
