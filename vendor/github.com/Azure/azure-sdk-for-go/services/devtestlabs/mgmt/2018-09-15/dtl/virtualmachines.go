@@ -19,12 +19,11 @@ package dtl
 
 import (
 	"context"
-	"net/http"
-
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/validation"
 	"github.com/Azure/go-autorest/tracing"
+	"net/http"
 )
 
 // VirtualMachinesClient is the the DevTest Labs Client.
@@ -286,7 +285,7 @@ func (client VirtualMachinesClient) ClaimResponder(resp *http.Response) (result 
 // Parameters:
 // resourceGroupName - the name of the resource group.
 // labName - the name of the lab.
-// name - the name of the virtual machin
+// name - the name of the virtual machine.
 // labVirtualMachine - a virtual machine.
 func (client VirtualMachinesClient) CreateOrUpdate(ctx context.Context, resourceGroupName string, labName string, name string, labVirtualMachine LabVirtualMachine) (result VirtualMachinesCreateOrUpdateFuture, err error) {
 	if tracing.IsEnabled() {
