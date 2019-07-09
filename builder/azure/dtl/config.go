@@ -130,11 +130,11 @@ type Config struct {
 	OSDiskSizeGB int32  `mapstructure:"os_disk_size_gb"`
 
 	// DTL values
-	StorageType         string `mapstructure:"storage_type"`
-	LabVirtualNetworkID string `mapstructure:"lab_virtual_network_id"`
-	LabName             string `mapstructure:"lab_name"`
-	LabSubnetName       string `mapstructure:"lab_subnet_name"`
-
+	StorageType          string `mapstructure:"storage_type"`
+	LabVirtualNetworkID  string `mapstructure:"lab_virtual_network_id"`
+	LabName              string `mapstructure:"lab_name"`
+	LabSubnetName        string `mapstructure:"lab_subnet_name"`
+	LabResourceGroupName string `mapstructure:"lab_resource_group_name"`
 	// Additional Disks
 	AdditionalDiskSize []int32 `mapstructure:"disk_additional_size"`
 	DiskCachingType    string  `mapstructure:"disk_caching_type"`
@@ -389,10 +389,12 @@ func setRuntimeValues(c *Config) {
 	}
 	c.tmpDeploymentName = tempName.DeploymentName
 	// Only set tmpResourceGroupName if no name has been specified
-	if c.TempResourceGroupName == "" && c.BuildResourceGroupName == "" {
+	if c.TempResourceGroupName == "" && c.BuildResourceGroupName == "" && c.LabResourceGroupName == "" {
 		c.tmpResourceGroupName = tempName.ResourceGroupName
-	} else if c.TempResourceGroupName != "" && c.BuildResourceGroupName == "" {
+	} else if c.TempResourceGroupName != "" && c.BuildResourceGroupName == "" && c.LabResourceGroupName == "" {
 		c.tmpResourceGroupName = c.TempResourceGroupName
+	} else if c.LabResourceGroupName != "" {
+		c.tmpResourceGroupName = c.LabResourceGroupName
 	}
 	c.tmpNicName = tempName.NicName
 	c.tmpPublicIPAddressName = tempName.PublicIPAddressName
@@ -592,9 +594,9 @@ func assertRequiredParametersSet(c *Config, errs *packer.MultiError) {
 		errs = packer.MultiErrorAppend(errs, fmt.Errorf("Specify either a VHD (storage_account and resource_group_name) or Managed Image (managed_image_resource_group_name and managed_image_name) output"))
 	}
 
-	if !xor(c.Location != "", c.BuildResourceGroupName != "") {
-		errs = packer.MultiErrorAppend(errs, fmt.Errorf("Specify either a location to create the resource group in or an existing build_resource_group_name, but not both."))
-	}
+	// if !xor(c.Location != "", c.BuildResourceGroupName != "") {
+	// 	errs = packer.MultiErrorAppend(errs, fmt.Errorf("Specify either a location to create the resource group in or an existing build_resource_group_name, but not both."))
+	// }
 
 	if c.ManagedImageName == "" && c.ManagedImageResourceGroupName == "" {
 		if c.StorageAccount == "" {

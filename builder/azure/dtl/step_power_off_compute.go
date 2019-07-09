@@ -17,6 +17,7 @@ type StepPowerOffCompute struct {
 }
 
 func NewStepPowerOffCompute(client *AzureClient, ui packer.Ui) *StepPowerOffCompute {
+
 	var step = &StepPowerOffCompute{
 		client: client,
 		say:    func(message string) { ui.Say(message) },

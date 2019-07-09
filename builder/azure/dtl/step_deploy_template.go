@@ -48,9 +48,10 @@ func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupNa
 	if err != nil {
 		return err
 	}
+	s.say("Deploying Lab resource group")
+	s.say(s.config.tmpResourceGroupName)
+	f, err := s.client.dtlVirtualMachineClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, *deployment)
 
-	//.say(s.config.)
-	f, err := s.client.dtlVirtualMachineClient.CreateOrUpdate(ctx, "PackerRG", s.config.LabName, s.config.tmpComputeName, *deployment)
 	if err == nil {
 		err = f.WaitForCompletionRef(ctx, s.client.dtlVirtualMachineClient.Client)
 	}

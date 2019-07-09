@@ -179,7 +179,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 
 	if b.config.OSType == constants.Target_Linux {
 		steps = []multistep.Step{
-			NewStepCreateResourceGroup(azureClient, ui),
+			//NewStepCreateResourceGroup(azureClient, ui),
 			// NewStepValidateTemplate(azureClient, ui, b.config, GetVirtualMachineDeployment),
 			NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
 			// NewStepGetIPAddress(azureClient, ui, endpointConnectType),
@@ -194,7 +194,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			// },
 			// NewStepGetOSDisk(azureClient, ui),
 			// NewStepGetAdditionalDisks(azureClient, ui),
-			// NewStepPowerOffCompute(azureClient, ui),
+			NewStepPowerOffCompute(azureClient, ui),
 			// NewStepSnapshotOSDisk(azureClient, ui, b.config),
 			// NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			// NewStepCaptureImage(azureClient, ui),
