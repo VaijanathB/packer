@@ -48,6 +48,7 @@ type AzureClient struct {
 	LastError               azureErrorResponse
 	VaultClientDelete       common.VaultClient
 	dtlVirtualMachineClient dtl.VirtualMachinesClient
+	dtlCustomImageClient    dtl.CustomImagesClient
 }
 
 func getCaptureResponse(body string) *CaptureTemplate {
@@ -197,6 +198,12 @@ func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string
 	azureClient.dtlVirtualMachineClient.RequestInspector = withInspection(maxlen)
 	azureClient.dtlVirtualMachineClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
 	azureClient.dtlVirtualMachineClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.dtlVirtualMachineClient.UserAgent)
+
+	azureClient.dtlCustomImageClient = dtl.NewCustomImagesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.dtlCustomImageClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.dtlCustomImageClient.RequestInspector = withInspection(maxlen)
+	azureClient.dtlCustomImageClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
+	azureClient.dtlCustomImageClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.dtlCustomImageClient.UserAgent)
 
 	azureClient.SnapshotsClient = compute.NewSnapshotsClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
 	azureClient.SnapshotsClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)

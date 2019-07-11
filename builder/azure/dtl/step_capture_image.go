@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
+
 	"github.com/hashicorp/packer/builder/azure/common/constants"
 	"github.com/hashicorp/packer/helper/multistep"
 	"github.com/hashicorp/packer/packer"
@@ -14,18 +16,20 @@ type StepCaptureImage struct {
 	client              *AzureClient
 	generalizeVM        func(resourceGroupName, computeName string) error
 	captureVhd          func(ctx context.Context, resourceGroupName string, computeName string, parameters *compute.VirtualMachineCaptureParameters) error
-	captureManagedImage func(ctx context.Context, resourceGroupName string, computeName string, parameters *compute.Image) error
+	captureManagedImage func(ctx context.Context) error
 	get                 func(client *AzureClient) *CaptureTemplate
+	config              *Config
 	say                 func(message string)
 	error               func(e error)
 }
 
-func NewStepCaptureImage(client *AzureClient, ui packer.Ui) *StepCaptureImage {
+func NewStepCaptureImage(client *AzureClient, ui packer.Ui, config *Config) *StepCaptureImage {
 	var step = &StepCaptureImage{
 		client: client,
 		get: func(client *AzureClient) *CaptureTemplate {
 			return client.Template
 		},
+		config: config,
 		say: func(message string) {
 			ui.Say(message)
 		},
@@ -35,7 +39,7 @@ func NewStepCaptureImage(client *AzureClient, ui packer.Ui) *StepCaptureImage {
 	}
 
 	step.generalizeVM = step.generalize
-	step.captureVhd = step.captureImage
+	// step.captureVhd = step.captureImage
 	step.captureManagedImage = step.captureImageFromVM
 
 	return step
@@ -49,16 +53,40 @@ func (s *StepCaptureImage) generalize(resourceGroupName string, computeName stri
 	return err
 }
 
-func (s *StepCaptureImage) captureImageFromVM(ctx context.Context, resourceGroupName string, imageName string, image *compute.Image) error {
-	f, err := s.client.ImagesClient.CreateOrUpdate(ctx, resourceGroupName, imageName, *image)
+func (s *StepCaptureImage) captureImageFromVM(ctx context.Context) error {
+	//f, err := s.client.ImagesClient.CreateOrUpdate(ctx, resourceGroupName, imageName, *image)
+
+	imageID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/virtualMachines/%s",
+		s.config.SubscriptionID,
+		s.config.tmpResourceGroupName,
+		s.config.LabName,
+		s.config.tmpComputeName)
+
+	s.say("Source VM Image id is ...")
+	s.say(imageID)
+	customImageProperties := &dtl.CustomImageProperties{
+		VM: &dtl.CustomImagePropertiesFromVM{
+			LinuxOsInfo: &dtl.LinuxOsInfo{
+				LinuxOsState: dtl.DeprovisionApplied,
+			},
+			SourceVMID: &imageID,
+		},
+	}
+	customImage := &dtl.CustomImage{
+		Name:                  &s.config.ManagedImageName,
+		CustomImageProperties: customImageProperties,
+	}
+
+	f, err := s.client.dtlCustomImageClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.ManagedImageName, *customImage)
 	if err != nil {
 		s.say(s.client.LastError.Error())
 	}
-	return f.WaitForCompletionRef(ctx, s.client.ImagesClient.Client)
+	return f.WaitForCompletionRef(ctx, s.client.dtlCustomImageClient.Client)
 }
 
 func (s *StepCaptureImage) captureImage(ctx context.Context, resourceGroupName string, computeName string, parameters *compute.VirtualMachineCaptureParameters) error {
 	f, err := s.client.VirtualMachinesClient.Capture(ctx, resourceGroupName, computeName, *parameters)
+
 	if err != nil {
 		s.say(s.client.LastError.Error())
 	}
@@ -71,13 +99,13 @@ func (s *StepCaptureImage) Run(ctx context.Context, state multistep.StateBag) mu
 	var computeName = state.Get(constants.ArmComputeName).(string)
 	var location = state.Get(constants.ArmLocation).(string)
 	var resourceGroupName = state.Get(constants.ArmResourceGroupName).(string)
-	var vmCaptureParameters = state.Get(constants.ArmVirtualMachineCaptureParameters).(*compute.VirtualMachineCaptureParameters)
-	var imageParameters = state.Get(constants.ArmImageParameters).(*compute.Image)
+	// var vmCaptureParameters = state.Get(constants.ArmVirtualMachineCaptureParameters).(*compute.VirtualMachineCaptureParameters)
+	// var imageParameters = state.Get(constants.ArmImageParameters).(*compute.Image)
 
-	var isManagedImage = state.Get(constants.ArmIsManagedImage).(bool)
-	var targetManagedImageResourceGroupName = state.Get(constants.ArmManagedImageResourceGroupName).(string)
-	var targetManagedImageName = state.Get(constants.ArmManagedImageName).(string)
-	var targetManagedImageLocation = state.Get(constants.ArmManagedImageLocation).(string)
+	// var isManagedImage = state.Get(constants.ArmIsManagedImage).(bool)
+	// var targetManagedImageResourceGroupName = state.Get(constants.ArmManagedImageResourceGroupName).(string)
+	// var targetManagedImageName = state.Get(constants.ArmManagedImageName).(string)
+	// var targetManagedImageLocation = state.Get(constants.ArmManagedImageLocation).(string)
 
 	s.say(fmt.Sprintf(" -> Compute ResourceGroupName : '%s'", resourceGroupName))
 	s.say(fmt.Sprintf(" -> Compute Name              : '%s'", computeName))
@@ -85,16 +113,18 @@ func (s *StepCaptureImage) Run(ctx context.Context, state multistep.StateBag) mu
 
 	err := s.generalizeVM(resourceGroupName, computeName)
 
-	if err == nil {
-		if isManagedImage {
-			s.say(fmt.Sprintf(" -> Image ResourceGroupName   : '%s'", targetManagedImageResourceGroupName))
-			s.say(fmt.Sprintf(" -> Image Name                : '%s'", targetManagedImageName))
-			s.say(fmt.Sprintf(" -> Image Location            : '%s'", targetManagedImageLocation))
-			err = s.captureManagedImage(ctx, targetManagedImageResourceGroupName, targetManagedImageName, imageParameters)
-		} else {
-			err = s.captureVhd(ctx, resourceGroupName, computeName, vmCaptureParameters)
-		}
-	}
+	err = s.captureImageFromVM(ctx)
+
+	// if err == nil {
+	// 	if isManagedImage {
+	// 		s.say(fmt.Sprintf(" -> Image ResourceGroupName   : '%s'", targetManagedImageResourceGroupName))
+	// 		s.say(fmt.Sprintf(" -> Image Name                : '%s'", targetManagedImageName))
+	// 		s.say(fmt.Sprintf(" -> Image Location            : '%s'", targetManagedImageLocation))
+	// 		err = s.captureManagedImage(ctx, targetManagedImageResourceGroupName, targetManagedImageName, imageParameters)
+	// 	} else {
+	// 		err = s.captureVhd(ctx, resourceGroupName, computeName, vmCaptureParameters)
+	// 	}
+	// }
 	if err != nil {
 		state.Put(constants.Error, err)
 		s.error(err)

@@ -159,6 +159,9 @@ func (s *StepDeployTemplate) deleteImage(ctx context.Context, imageType string, 
 func (s *StepDeployTemplate) Cleanup(state multistep.StateBag) {
 	//Only clean up if this was an existing resource group and the resource group
 	//is marked as created
+	// Just return now
+	return
+
 	var existingResourceGroup = state.Get(constants.ArmIsExistingResourceGroup).(bool)
 	var resourceGroupCreated = state.Get(constants.ArmIsResourceGroupCreated).(bool)
 	if !existingResourceGroup || !resourceGroupCreated {

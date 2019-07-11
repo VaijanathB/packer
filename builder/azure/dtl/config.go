@@ -212,6 +212,21 @@ func (c *Config) toImageParameters() *compute.Image {
 	}
 }
 
+func (c *Config) toDtlImageParameters() *compute.Image {
+	return &compute.Image{
+		ImageProperties: &compute.ImageProperties{
+			SourceVirtualMachine: &compute.SubResource{
+				ID: to.StringPtr(c.toVMID()),
+			},
+			StorageProfile: &compute.ImageStorageProfile{
+				ZoneResilient: to.BoolPtr(c.ManagedImageZoneResilient),
+			},
+		},
+		Location: to.StringPtr(c.Location),
+		Tags:     c.AzureTags,
+	}
+}
+
 func (c *Config) createCertificate() (string, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
