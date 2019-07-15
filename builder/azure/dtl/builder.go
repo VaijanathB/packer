@@ -180,27 +180,27 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	if b.config.OSType == constants.Target_Linux {
 		steps = []multistep.Step{
 			//NewStepCreateResourceGroup(azureClient, ui),
-			// NewStepValidateTemplate(azureClient, ui, b.config, GetVirtualMachineDeployment),
+			NewStepValidateTemplate(azureClient, ui, b.config, GetVirtualMachineDeployment),
 			NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
-			// NewStepGetIPAddress(azureClient, ui, endpointConnectType),
-			// &communicator.StepConnectSSH{
-			// 	Config:    &b.config.Comm,
-			// 	Host:      lin.SSHHost,
-			// 	SSHConfig: b.config.Comm.SSHConfigFunc(),
-			// },
-			// &packerCommon.StepProvision{},
-			// &packerCommon.StepCleanupTempKeys{
-			// 	Comm: &b.config.Comm,
-			// },
-			// NewStepGetOSDisk(azureClient, ui),
-			// NewStepGetAdditionalDisks(azureClient, ui),
+			NewStepGetIPAddress(azureClient, ui, endpointConnectType),
+			&communicator.StepConnectSSH{
+				Config:    &b.config.Comm,
+				Host:      lin.SSHHost,
+				SSHConfig: b.config.Comm.SSHConfigFunc(),
+			},
+			&packerCommon.StepProvision{},
+			&packerCommon.StepCleanupTempKeys{
+				Comm: &b.config.Comm,
+			},
+			NewStepGetOSDisk(azureClient, ui),
+			NewStepGetAdditionalDisks(azureClient, ui),
 			NewStepPowerOffCompute(azureClient, ui),
 			NewStepSnapshotOSDisk(azureClient, ui, b.config),
-			// NewStepSnapshotDataDisks(azureClient, ui, b.config),
+			NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
-			// NewStepDeleteResourceGroup(azureClient, ui),
-			// NewStepDeleteOSDisk(azureClient, ui),
-			// NewStepDeleteAdditionalDisks(azureClient, ui),
+			NewStepDeleteResourceGroup(azureClient, ui),
+			NewStepDeleteOSDisk(azureClient, ui),
+			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
 	} else if b.config.OSType == constants.Target_Windows {
 		//keyVaultDeploymentName := b.stateBag.Get(constants.ArmKeyVaultDeploymentName).(string)

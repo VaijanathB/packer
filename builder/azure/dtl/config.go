@@ -130,11 +130,11 @@ type Config struct {
 	OSDiskSizeGB int32  `mapstructure:"os_disk_size_gb"`
 
 	// DTL values
-	StorageType          string `mapstructure:"storage_type"`
-	LabVirtualNetworkID  string `mapstructure:"lab_virtual_network_id"`
-	LabName              string `mapstructure:"lab_name"`
-	LabSubnetName        string `mapstructure:"lab_subnet_name"`
-	LabResourceGroupName string `mapstructure:"lab_resource_group_name"`
+	StorageType           string `mapstructure:"storage_type"`
+	LabVirtualNetworkName string `mapstructure:"lab_virtual_network_name"`
+	LabName               string `mapstructure:"lab_name"`
+	LabSubnetName         string `mapstructure:"lab_subnet_name"`
+	LabResourceGroupName  string `mapstructure:"lab_resource_group_name"`
 	// Additional Disks
 	AdditionalDiskSize []int32 `mapstructure:"disk_additional_size"`
 	DiskCachingType    string  `mapstructure:"disk_caching_type"`
@@ -198,21 +198,6 @@ func (c *Config) toVirtualMachineCaptureParameters() *compute.VirtualMachineCapt
 }
 
 func (c *Config) toImageParameters() *compute.Image {
-	return &compute.Image{
-		ImageProperties: &compute.ImageProperties{
-			SourceVirtualMachine: &compute.SubResource{
-				ID: to.StringPtr(c.toVMID()),
-			},
-			StorageProfile: &compute.ImageStorageProfile{
-				ZoneResilient: to.BoolPtr(c.ManagedImageZoneResilient),
-			},
-		},
-		Location: to.StringPtr(c.Location),
-		Tags:     c.AzureTags,
-	}
-}
-
-func (c *Config) toDtlImageParameters() *compute.Image {
 	return &compute.Image{
 		ImageProperties: &compute.ImageProperties{
 			SourceVirtualMachine: &compute.SubResource{

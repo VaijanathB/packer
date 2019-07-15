@@ -2,6 +2,7 @@ package dtl
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-02-01/resources"
@@ -44,6 +45,13 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 		Version:   &config.ImageVersion,
 	}
 
+	// /subscriptions/cba4e087-aceb-44f0-970e-65e96eff4081/resourcegroups/packerrg/providers/microsoft.devtestlab/labs/packerlab/virtualnetworks/dtlpackerlab
+	labVirtualNetworkID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/virtualnetworks/%s",
+		config.SubscriptionID,
+		config.tmpResourceGroupName,
+		config.LabName,
+		config.LabVirtualNetworkName)
+
 	labMachineProps := &dtl.LabVirtualMachineProperties{
 		CreatedByUserID:              &config.ClientConfig.ClientID,
 		OwnerObjectID:                &config.ClientConfig.ObjectID,
@@ -54,7 +62,7 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 		SSHKey:                       &config.sshAuthorizedKey,
 		IsAuthenticationWithSSHKey:   newBool(false),
 		LabSubnetName:                &config.LabSubnetName,
-		LabVirtualNetworkID:          &config.LabVirtualNetworkID,
+		LabVirtualNetworkID:          &labVirtualNetworkID,
 		DisallowPublicIPAddress:      newBool(false),
 		GalleryImageReference:        galleryImageRef,
 		AllowClaim:                   newBool(false),
