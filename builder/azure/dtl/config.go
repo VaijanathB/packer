@@ -73,6 +73,18 @@ type SharedImageGallery struct {
 	ImageVersion  string `mapstructure:"image_version"`
 }
 
+type DtlArtifact struct {
+	ArtifactName string              `mapstructure:"artifact_name"`
+	ArtifactId   string              `mapstructure:"artifact_id"`
+	Parameters   []ArtifactParameter `mapstructure:"parameters"`
+}
+
+type ArtifactParameter struct {
+	Name  string `mapstructure:"name"`
+	Value string `mapstructure:"value"`
+	Type  string `mapstructure:"type"`
+}
+
 type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 
@@ -130,11 +142,13 @@ type Config struct {
 	OSDiskSizeGB int32  `mapstructure:"os_disk_size_gb"`
 
 	// DTL values
-	StorageType           string `mapstructure:"storage_type"`
-	LabVirtualNetworkName string `mapstructure:"lab_virtual_network_name"`
-	LabName               string `mapstructure:"lab_name"`
-	LabSubnetName         string `mapstructure:"lab_subnet_name"`
-	LabResourceGroupName  string `mapstructure:"lab_resource_group_name"`
+	StorageType           string        `mapstructure:"storage_type"`
+	LabVirtualNetworkName string        `mapstructure:"lab_virtual_network_name"`
+	LabName               string        `mapstructure:"lab_name"`
+	LabSubnetName         string        `mapstructure:"lab_subnet_name"`
+	LabResourceGroupName  string        `mapstructure:"lab_resource_group_name"`
+	DtlArtifacts          []DtlArtifact `mapstructure:"dtl_artifacts"`
+
 	// Additional Disks
 	AdditionalDiskSize []int32 `mapstructure:"disk_additional_size"`
 	DiskCachingType    string  `mapstructure:"disk_caching_type"`

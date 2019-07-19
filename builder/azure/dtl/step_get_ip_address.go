@@ -3,6 +3,7 @@ package dtl
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/packer/builder/azure/common/constants"
 	"github.com/hashicorp/packer/helper/multistep"
@@ -41,6 +42,7 @@ func NewStepGetIPAddress(client *AzureClient, ui packer.Ui, endpoint EndpointTyp
 		error:    func(e error) { ui.Error(e.Error()) },
 	}
 
+	step.get = step.getPublicIP
 	switch endpoint {
 	case PrivateEndpoint:
 		step.get = step.getPrivateIP
@@ -54,7 +56,7 @@ func NewStepGetIPAddress(client *AzureClient, ui packer.Ui, endpoint EndpointTyp
 }
 
 func (s *StepGetIPAddress) getPrivateIP(ctx context.Context, resourceGroupName string, ipAddressName string, interfaceName string) (string, error) {
-	resp, err := s.client.InterfacesClient.Get(ctx, resourceGroupName, interfaceName, "")
+	resp, err := s.client.InterfacesClient.Get(ctx, strings.ToLower(resourceGroupName), interfaceName, "")
 	if err != nil {
 		s.say(s.client.LastError.Error())
 		return "", err
@@ -64,7 +66,9 @@ func (s *StepGetIPAddress) getPrivateIP(ctx context.Context, resourceGroupName s
 }
 
 func (s *StepGetIPAddress) getPublicIP(ctx context.Context, resourceGroupName string, ipAddressName string, interfaceName string) (string, error) {
-	resp, err := s.client.PublicIPAddressesClient.Get(ctx, resourceGroupName, ipAddressName, "")
+	s.say("Getting Public End Point")
+	s.say(ipAddressName)
+	resp, err := s.client.PublicIPAddressesClient.Get(ctx, strings.ToLower(resourceGroupName), ipAddressName, "")
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +77,7 @@ func (s *StepGetIPAddress) getPublicIP(ctx context.Context, resourceGroupName st
 }
 
 func (s *StepGetIPAddress) getPublicIPInPrivateNetwork(ctx context.Context, resourceGroupName string, ipAddressName string, interfaceName string) (string, error) {
-	s.getPrivateIP(ctx, resourceGroupName, ipAddressName, interfaceName)
+	s.getPrivateIP(ctx, strings.ToLower(resourceGroupName), ipAddressName, interfaceName)
 	return s.getPublicIP(ctx, resourceGroupName, ipAddressName, interfaceName)
 }
 

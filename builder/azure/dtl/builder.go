@@ -18,7 +18,9 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	packerAzureCommon "github.com/hashicorp/packer/builder/azure/common"
 	"github.com/hashicorp/packer/builder/azure/common/constants"
+	"github.com/hashicorp/packer/builder/azure/common/lin"
 	packerCommon "github.com/hashicorp/packer/common"
+	"github.com/hashicorp/packer/helper/communicator"
 	"github.com/hashicorp/packer/helper/multistep"
 	"github.com/hashicorp/packer/packer"
 )
@@ -163,12 +165,12 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		}
 	}
 
-	//endpointConnectType := PublicEndpoint
-	// if b.isPublicPrivateNetworkCommunication() && b.isPrivateNetworkCommunication() {
-	// 	endpointConnectType = PublicEndpointInPrivateNetwork
-	// } else if b.isPrivateNetworkCommunication() {
-	// 	endpointConnectType = PrivateEndpoint
-	// }
+	endpointConnectType := PublicEndpoint
+	if b.isPublicPrivateNetworkCommunication() && b.isPrivateNetworkCommunication() {
+		endpointConnectType = PublicEndpointInPrivateNetwork
+	} else if b.isPrivateNetworkCommunication() {
+		endpointConnectType = PrivateEndpoint
+	}
 
 	b.setRuntimeParameters(b.stateBag)
 	b.setTemplateParameters(b.stateBag)
@@ -198,7 +200,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			NewStepSnapshotOSDisk(azureClient, ui, b.config),
 			NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
-			NewStepDeleteResourceGroup(azureClient, ui),
+			// NewStepDeleteResourceGroup(azureClient, ui),
 			NewStepDeleteOSDisk(azureClient, ui),
 			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}

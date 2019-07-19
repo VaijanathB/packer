@@ -29,8 +29,8 @@ func NewTempName() *TempName {
 	tempName.DeploymentName = fmt.Sprintf("pkrdp%s", suffix)
 	tempName.KeyVaultName = fmt.Sprintf("pkrkv%s", suffix)
 	tempName.OSDiskName = fmt.Sprintf("pkros%s", suffix)
-	tempName.NicName = fmt.Sprintf("pkrni%s", suffix)
-	tempName.PublicIPAddressName = fmt.Sprintf("pkrip%s", suffix)
+	tempName.NicName = tempName.ComputeName
+	tempName.PublicIPAddressName = tempName.ComputeName
 	tempName.SubnetName = fmt.Sprintf("pkrsn%s", suffix)
 	tempName.VirtualNetworkName = fmt.Sprintf("pkrvn%s", suffix)
 	tempName.ResourceGroupName = fmt.Sprintf("packer-Resource-Group-%s", suffix)

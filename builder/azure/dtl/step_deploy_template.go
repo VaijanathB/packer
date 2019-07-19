@@ -48,8 +48,21 @@ func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupNa
 	if err != nil {
 		return err
 	}
+	// s.say("Dumping the config")
+	// common.DumpConfig(s.config, s.say)
+	// s.say("Config end")
+	// s.say(s.config.DtlArtifacts[0].Parameters[0].Name)
+	// s.say(s.config.DtlArtifacts[0].Parameters[1].Name)
+	// s.say(s.config.DtlArtifacts[0].Parameters[2].Name)
+	// var t = deployment.Artifacts
+
+	// for _, p := range(t){
+	// 	s
+	// }
+
 	s.say("Deploying Lab resource group")
 	s.say(s.config.tmpResourceGroupName)
+
 	f, err := s.client.dtlVirtualMachineClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, *deployment)
 
 	if err == nil {
@@ -58,7 +71,9 @@ func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupNa
 	if err != nil {
 		s.say(s.client.LastError.Error())
 	}
+
 	return err
+
 }
 
 func (s *StepDeployTemplate) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {

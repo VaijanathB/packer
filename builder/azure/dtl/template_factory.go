@@ -6,7 +6,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-02-01/resources"
-
 	"github.com/hashicorp/packer/builder/azure/common/template"
 )
 
@@ -52,6 +51,36 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 		config.LabName,
 		config.LabVirtualNetworkName)
 
+	dtlArtifacts := []dtl.ArtifactInstallProperties{}
+
+	if config.DtlArtifacts != nil {
+		for i := range config.DtlArtifacts {
+			///subscriptions/cba4e087-aceb-44f0-970e-65e96eff4081/resourceGroups/packerrg/providers/Microsoft.DevTestLab/labs/packerlab/artifactSources/public repo/artifacts/linux-apt-package"
+			config.DtlArtifacts[i].ArtifactId = fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/artifactSources/public repo/artifacts/%s",
+				config.SubscriptionID,
+				config.tmpResourceGroupName,
+				config.LabName,
+				config.DtlArtifacts[i].ArtifactName)
+
+			dparams := []dtl.ArtifactParameterProperties{}
+			for j := range config.DtlArtifacts[i].Parameters {
+				dp := &dtl.ArtifactParameterProperties{}
+				dp.Name = &config.DtlArtifacts[i].Parameters[j].Name
+				dp.Value = &config.DtlArtifacts[i].Parameters[j].Value
+
+				dparams = append(dparams, *dp)
+				print(dparams)
+			}
+			dtlArtifact := &dtl.ArtifactInstallProperties{
+				ArtifactTitle: &config.DtlArtifacts[i].ArtifactName,
+				ArtifactID:    &config.DtlArtifacts[i].ArtifactId,
+				Parameters:    &dparams,
+			}
+			dtlArtifacts = append(dtlArtifacts, *dtlArtifact)
+		}
+
+	}
+
 	labMachineProps := &dtl.LabVirtualMachineProperties{
 		CreatedByUserID:              &config.ClientConfig.ClientID,
 		OwnerObjectID:                &config.ClientConfig.ObjectID,
@@ -60,7 +89,7 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 		UserName:                     &config.UserName,
 		Password:                     &config.Password,
 		SSHKey:                       &config.sshAuthorizedKey,
-		IsAuthenticationWithSSHKey:   newBool(false),
+		IsAuthenticationWithSSHKey:   newBool(true),
 		LabSubnetName:                &config.LabSubnetName,
 		LabVirtualNetworkID:          &labVirtualNetworkID,
 		DisallowPublicIPAddress:      newBool(false),
@@ -68,7 +97,9 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 		AllowClaim:                   newBool(false),
 		StorageType:                  &config.StorageType,
 		VirtualMachineCreationSource: dtl.FromGalleryImage,
+		Artifacts:                    &dtlArtifacts,
 	}
+
 	labMachine := &dtl.LabVirtualMachine{
 		Location:                    &config.Location,
 		Tags:                        config.AzureTags,
