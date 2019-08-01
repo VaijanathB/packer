@@ -1,4 +1,4 @@
-package dtl
+package devtestlabsartifacts
 
 // Method to resolve information about the user so that a client can be
 // constructed to communicated with Azure.
@@ -28,20 +28,20 @@ func newConfigRetriever() configRetriever {
 }
 
 func (cr configRetriever) FillParameters(c *Config) error {
-	if c.SubscriptionID == "" {
+	if c.ClientConfig.SubscriptionID == "" {
 		subscriptionID, err := cr.getSubscriptionFromIMDS()
 		if err != nil {
 			return err
 		}
-		c.SubscriptionID = subscriptionID
+		c.ClientConfig.SubscriptionID = subscriptionID
 	}
 
-	if c.TenantID == "" {
-		tenantID, err := cr.findTenantID(*c.CloudEnvironment, c.SubscriptionID)
+	if c.ClientConfig.TenantID == "" {
+		tenantID, err := cr.findTenantID(*c.ClientConfig.CloudEnvironment, c.ClientConfig.SubscriptionID)
 		if err != nil {
 			return err
 		}
-		c.TenantID = tenantID
+		c.ClientConfig.TenantID = tenantID
 	}
 
 	return nil

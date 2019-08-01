@@ -24,8 +24,9 @@ type TempName struct {
 func NewTempName() *TempName {
 	tempName := &TempName{}
 
-	suffix := random.AlphaNumLower(10)
-	tempName.ComputeName = fmt.Sprintf("pkrvm%s", suffix)
+	suffix := "vm123" // random.AlphaNumLower(10)
+
+	tempName.ComputeName = suffix //fmt.Sprintf("pkrvm%s", suffix)
 	tempName.DeploymentName = fmt.Sprintf("pkrdp%s", suffix)
 	tempName.KeyVaultName = fmt.Sprintf("pkrkv%s", suffix)
 	tempName.OSDiskName = fmt.Sprintf("pkros%s", suffix)

@@ -47,7 +47,7 @@ type AzureClient struct {
 	Template                *CaptureTemplate
 	LastError               azureErrorResponse
 	VaultClientDelete       common.VaultClient
-	dtlVirtualMachineClient dtl.VirtualMachinesClient
+	DtlVirtualMachineClient dtl.VirtualMachinesClient
 	dtlCustomImageClient    dtl.CustomImagesClient
 }
 
@@ -193,11 +193,11 @@ func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string
 	azureClient.VirtualMachinesClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
 	azureClient.VirtualMachinesClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.VirtualMachinesClient.UserAgent)
 
-	azureClient.dtlVirtualMachineClient = dtl.NewVirtualMachinesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
-	azureClient.dtlVirtualMachineClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
-	azureClient.dtlVirtualMachineClient.RequestInspector = withInspection(maxlen)
-	azureClient.dtlVirtualMachineClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
-	azureClient.dtlVirtualMachineClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.dtlVirtualMachineClient.UserAgent)
+	azureClient.DtlVirtualMachineClient = dtl.NewVirtualMachinesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.DtlVirtualMachineClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.DtlVirtualMachineClient.RequestInspector = withInspection(maxlen)
+	azureClient.DtlVirtualMachineClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
+	azureClient.DtlVirtualMachineClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.DtlVirtualMachineClient.UserAgent)
 
 	azureClient.dtlCustomImageClient = dtl.NewCustomImagesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
 	azureClient.dtlCustomImageClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)

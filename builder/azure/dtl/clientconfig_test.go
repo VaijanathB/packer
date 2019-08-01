@@ -133,11 +133,11 @@ func Test_ClientConfig_DeviceLogin(t *testing.T) {
 	getEnvOrSkip(t, "AZURE_DEVICE_LOGIN")
 	cfg := ClientConfig{
 		SubscriptionID:   getEnvOrSkip(t, "AZURE_SUBSCRIPTION"),
-		cloudEnvironment: getCloud(),
+		CloudEnvironment: getCloud(),
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.getServicePrincipalTokens(
+	spt, sptkv, err := cfg.GetServicePrincipalTokens(
 		func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
@@ -164,11 +164,11 @@ func Test_ClientConfig_ClientPassword(t *testing.T) {
 		ClientID:         getEnvOrSkip(t, "AZURE_CLIENTID"),
 		ClientSecret:     getEnvOrSkip(t, "AZURE_CLIENTSECRET"),
 		TenantID:         getEnvOrSkip(t, "AZURE_TENANTID"),
-		cloudEnvironment: getCloud(),
+		CloudEnvironment: getCloud(),
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.getServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
+	spt, sptkv, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
 	}
@@ -194,11 +194,11 @@ func Test_ClientConfig_ClientCert(t *testing.T) {
 		ClientID:         getEnvOrSkip(t, "AZURE_CLIENTID"),
 		ClientCertPath:   getEnvOrSkip(t, "AZURE_CLIENTCERT"),
 		TenantID:         getEnvOrSkip(t, "AZURE_TENANTID"),
-		cloudEnvironment: getCloud(),
+		CloudEnvironment: getCloud(),
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.getServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
+	spt, sptkv, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
 	}
@@ -224,11 +224,11 @@ func Test_ClientConfig_ClientJWT(t *testing.T) {
 		ClientID:         getEnvOrSkip(t, "AZURE_CLIENTID"),
 		ClientJWT:        getEnvOrSkip(t, "AZURE_CLIENTJWT"),
 		TenantID:         getEnvOrSkip(t, "AZURE_TENANTID"),
-		cloudEnvironment: getCloud(),
+		CloudEnvironment: getCloud(),
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.getServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
+	spt, sptkv, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
 	}
@@ -366,7 +366,7 @@ func Test_ClientConfig_ClientJWTShouldHaveThumbprint(t *testing.T) {
 
 func emptyClientConfig() ClientConfig {
 	cfg := ClientConfig{}
-	_ = cfg.setCloudEnvironment()
+	_ = cfg.SetCloudEnvironment()
 	return cfg
 }
 

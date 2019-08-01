@@ -301,7 +301,7 @@ func newConfig(raws ...interface{}) (*Config, []string, error) {
 	provideDefaultValues(&c)
 	setRuntimeValues(&c)
 	setUserNamePassword(&c)
-	err = c.ClientConfig.setCloudEnvironment()
+	err = c.ClientConfig.SetCloudEnvironment()
 	if err != nil {
 		return nil, nil, err
 	}

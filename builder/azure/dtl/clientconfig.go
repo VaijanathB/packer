@@ -17,7 +17,7 @@ type ClientConfig struct {
 	// Describes where API's are
 
 	CloudEnvironmentName string `mapstructure:"cloud_environment_name"`
-	cloudEnvironment     *azure.Environment
+	CloudEnvironment     *azure.Environment
 
 	// Authentication fields
 
@@ -42,7 +42,7 @@ func (c *ClientConfig) provideDefaultValues() {
 	}
 }
 
-func (c *ClientConfig) setCloudEnvironment() error {
+func (c *ClientConfig) SetCloudEnvironment() error {
 	lookup := map[string]string{
 		"CHINA":           "AzureChinaCloud",
 		"CHINACLOUD":      "AzureChinaCloud",
@@ -72,7 +72,7 @@ func (c *ClientConfig) setCloudEnvironment() error {
 	}
 
 	env, err := azure.EnvironmentFromName(envName)
-	c.cloudEnvironment = &env
+	c.CloudEnvironment = &env
 	return err
 }
 
@@ -89,11 +89,11 @@ func (c ClientConfig) assertRequiredParametersSet(errs *packer.MultiError) {
 	// readable by the ObjectID of the App.  There may be another way to handle
 	// this case, but I am not currently aware of it - send feedback.
 
-	if c.useMSI() {
+	if c.UseMSI() {
 		return
 	}
 
-	if c.useDeviceLogin() {
+	if c.UseDeviceLogin() {
 		return
 	}
 
@@ -150,7 +150,7 @@ func (c ClientConfig) assertRequiredParametersSet(errs *packer.MultiError) {
 		"  - subscription_id, client_id and client_jwt."))
 }
 
-func (c ClientConfig) useDeviceLogin() bool {
+func (c ClientConfig) UseDeviceLogin() bool {
 	return c.SubscriptionID != "" &&
 		c.ClientID == "" &&
 		c.ClientSecret == "" &&
@@ -158,7 +158,7 @@ func (c ClientConfig) useDeviceLogin() bool {
 		c.ClientCertPath == ""
 }
 
-func (c ClientConfig) useMSI() bool {
+func (c ClientConfig) UseMSI() bool {
 	return c.SubscriptionID == "" &&
 		c.ClientID == "" &&
 		c.ClientSecret == "" &&
@@ -167,7 +167,7 @@ func (c ClientConfig) useMSI() bool {
 		c.TenantID == ""
 }
 
-func (c ClientConfig) getServicePrincipalTokens(
+func (c ClientConfig) GetServicePrincipalTokens(
 	say func(string)) (
 	servicePrincipalToken *adal.ServicePrincipalToken,
 	servicePrincipalTokenVault *adal.ServicePrincipalToken,
@@ -177,24 +177,24 @@ func (c ClientConfig) getServicePrincipalTokens(
 
 	var auth oAuthTokenProvider
 
-	if c.useDeviceLogin() {
+	if c.UseDeviceLogin() {
 		say("Getting tokens using device flow")
-		auth = NewDeviceFlowOAuthTokenProvider(*c.cloudEnvironment, say, tenantID)
-	} else if c.useMSI() {
+		auth = NewDeviceFlowOAuthTokenProvider(*c.CloudEnvironment, say, tenantID)
+	} else if c.UseMSI() {
 		say("Getting tokens using Managed Identity for Azure")
-		auth = NewMSIOAuthTokenProvider(*c.cloudEnvironment)
+		auth = NewMSIOAuthTokenProvider(*c.CloudEnvironment)
 	} else if c.ClientSecret != "" {
 		say("Getting tokens using client secret")
-		auth = NewSecretOAuthTokenProvider(*c.cloudEnvironment, c.ClientID, c.ClientSecret, tenantID)
+		auth = NewSecretOAuthTokenProvider(*c.CloudEnvironment, c.ClientID, c.ClientSecret, tenantID)
 	} else if c.ClientCertPath != "" {
 		say("Getting tokens using client certificate")
-		auth, err = NewCertOAuthTokenProvider(*c.cloudEnvironment, c.ClientID, c.ClientCertPath, tenantID)
+		auth, err = NewCertOAuthTokenProvider(*c.CloudEnvironment, c.ClientID, c.ClientCertPath, tenantID)
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
 		say("Getting tokens using client bearer JWT")
-		auth = NewJWTOAuthTokenProvider(*c.cloudEnvironment, c.ClientID, c.ClientJWT, tenantID)
+		auth = NewJWTOAuthTokenProvider(*c.CloudEnvironment, c.ClientID, c.ClientJWT, tenantID)
 	}
 
 	servicePrincipalToken, err = auth.getServicePrincipalToken()
@@ -208,7 +208,7 @@ func (c ClientConfig) getServicePrincipalTokens(
 	}
 
 	servicePrincipalTokenVault, err = auth.getServicePrincipalTokenWithResource(
-		strings.TrimRight(c.cloudEnvironment.KeyVaultEndpoint, "/"))
+		strings.TrimRight(c.CloudEnvironment.KeyVaultEndpoint, "/"))
 	if err != nil {
 		return nil, nil, err
 	}

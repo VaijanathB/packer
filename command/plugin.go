@@ -77,6 +77,7 @@ import (
 	chefclientprovisioner "github.com/hashicorp/packer/provisioner/chef-client"
 	chefsoloprovisioner "github.com/hashicorp/packer/provisioner/chef-solo"
 	convergeprovisioner "github.com/hashicorp/packer/provisioner/converge"
+	dtlazureartifactprovisioner "github.com/hashicorp/packer/provisioner/azure-dtlartifact"
 	fileprovisioner "github.com/hashicorp/packer/provisioner/file"
 	inspecprovisioner "github.com/hashicorp/packer/provisioner/inspec"
 	powershellprovisioner "github.com/hashicorp/packer/provisioner/powershell"
@@ -144,6 +145,7 @@ var Provisioners = map[string]packer.Provisioner{
 	"chef-client":       new(chefclientprovisioner.Provisioner),
 	"chef-solo":         new(chefsoloprovisioner.Provisioner),
 	"converge":          new(convergeprovisioner.Provisioner),
+	"azure-dtlartifact": new(dtlazureartifactprovisioner.Provisioner),
 	"file":              new(fileprovisioner.Provisioner),
 	"inspec":            new(inspecprovisioner.Provisioner),
 	"powershell":        new(powershellprovisioner.Provisioner),
