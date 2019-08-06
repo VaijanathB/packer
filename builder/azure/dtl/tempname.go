@@ -21,10 +21,14 @@ type TempName struct {
 	VirtualNetworkName  string
 }
 
-func NewTempName() *TempName {
+func NewTempName(c *Config) *TempName {
 	tempName := &TempName{}
+	suffix := random.AlphaNumLower(10)
 
-	suffix := "vm123" // random.AlphaNumLower(10)
+	if c.VMName != "" {
+		suffix = c.VMName // random.AlphaNumLower(10)
+
+	}
 
 	tempName.ComputeName = suffix //fmt.Sprintf("pkrvm%s", suffix)
 	tempName.DeploymentName = fmt.Sprintf("pkrdp%s", suffix)

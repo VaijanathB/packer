@@ -194,15 +194,15 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			&packerCommon.StepCleanupTempKeys{
 				Comm: &b.config.Comm,
 			},
-			//NewStepGetOSDisk(azureClient, ui),
-			//NewStepGetAdditionalDisks(azureClient, ui),
-			// NewStepPowerOffCompute(azureClient, ui),
-			// NewStepSnapshotOSDisk(azureClient, ui, b.config),
-			// NewStepSnapshotDataDisks(azureClient, ui, b.config),
-			// NewStepCaptureImage(azureClient, ui, b.config),
-			// // NewStepDeleteResourceGroup(azureClient, ui),
-			// NewStepDeleteOSDisk(azureClient, ui),
-			// NewStepDeleteAdditionalDisks(azureClient, ui),
+			NewStepGetOSDisk(azureClient, ui),
+			NewStepGetAdditionalDisks(azureClient, ui),
+			NewStepPowerOffCompute(azureClient, ui),
+			NewStepSnapshotOSDisk(azureClient, ui, b.config),
+			NewStepSnapshotDataDisks(azureClient, ui, b.config),
+			NewStepCaptureImage(azureClient, ui, b.config),
+			// NewStepDeleteResourceGroup(azureClient, ui),
+			NewStepDeleteOSDisk(azureClient, ui),
+			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
 	} else if b.config.OSType == constants.Target_Windows {
 		//keyVaultDeploymentName := b.stateBag.Get(constants.ArmKeyVaultDeploymentName).(string)

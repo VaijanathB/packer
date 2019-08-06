@@ -148,6 +148,7 @@ type Config struct {
 	LabSubnetName         string        `mapstructure:"lab_subnet_name"`
 	LabResourceGroupName  string        `mapstructure:"lab_resource_group_name"`
 	DtlArtifacts          []DtlArtifact `mapstructure:"dtl_artifacts"`
+	VMName                string        `mapstructure:"vm_name"`
 
 	// Additional Disks
 	AdditionalDiskSize []int32 `mapstructure:"disk_additional_size"`
@@ -388,7 +389,7 @@ func setWinRMCertificate(c *Config) error {
 }
 
 func setRuntimeValues(c *Config) {
-	var tempName = NewTempName()
+	var tempName = NewTempName(c)
 
 	c.tmpAdminPassword = tempName.AdminPassword
 	// store so that we can access this later during provisioning
