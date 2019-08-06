@@ -20,6 +20,7 @@ import (
 	amazonebsvolumebuilder "github.com/hashicorp/packer/builder/amazon/ebsvolume"
 	amazoninstancebuilder "github.com/hashicorp/packer/builder/amazon/instance"
 	azurearmbuilder "github.com/hashicorp/packer/builder/azure/arm"
+	azuredtlbuilder "github.com/hashicorp/packer/builder/azure/dtl"
 	cloudstackbuilder "github.com/hashicorp/packer/builder/cloudstack"
 	digitaloceanbuilder "github.com/hashicorp/packer/builder/digitalocean"
 	dockerbuilder "github.com/hashicorp/packer/builder/docker"
@@ -76,6 +77,7 @@ import (
 	chefclientprovisioner "github.com/hashicorp/packer/provisioner/chef-client"
 	chefsoloprovisioner "github.com/hashicorp/packer/provisioner/chef-solo"
 	convergeprovisioner "github.com/hashicorp/packer/provisioner/converge"
+	dtlazureartifactprovisioner "github.com/hashicorp/packer/provisioner/azure-dtlartifact"
 	fileprovisioner "github.com/hashicorp/packer/provisioner/file"
 	inspecprovisioner "github.com/hashicorp/packer/provisioner/inspec"
 	powershellprovisioner "github.com/hashicorp/packer/provisioner/powershell"
@@ -101,6 +103,7 @@ var Builders = map[string]packer.Builder{
 	"amazon-ebsvolume":    new(amazonebsvolumebuilder.Builder),
 	"amazon-instance":     new(amazoninstancebuilder.Builder),
 	"azure-arm":           new(azurearmbuilder.Builder),
+	"azure-dtl":           new(azuredtlbuilder.Builder),
 	"cloudstack":          new(cloudstackbuilder.Builder),
 	"digitalocean":        new(digitaloceanbuilder.Builder),
 	"docker":              new(dockerbuilder.Builder),
@@ -142,6 +145,7 @@ var Provisioners = map[string]packer.Provisioner{
 	"chef-client":       new(chefclientprovisioner.Provisioner),
 	"chef-solo":         new(chefsoloprovisioner.Provisioner),
 	"converge":          new(convergeprovisioner.Provisioner),
+	"azure-dtlartifact": new(dtlazureartifactprovisioner.Provisioner),
 	"file":              new(fileprovisioner.Provisioner),
 	"inspec":            new(inspecprovisioner.Provisioner),
 	"powershell":        new(powershellprovisioner.Provisioner),
