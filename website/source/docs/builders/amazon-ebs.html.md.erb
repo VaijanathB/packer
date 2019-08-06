@@ -244,6 +244,10 @@ builder.
     *KmsKeyId* in the [AWS API docs -
     CopyImage](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CopyImage.html).
 
+    This option supercedes the `kms_key_id` option -- if you set both, and they
+    are different, Packer will respect the value in `region_kms_key_ids` for
+    your build region and silently disregard the value provided in `kms_key_id`.
+
 -   `run_tags` (object of key/value strings) - Tags to apply to the instance
     that is *launched* to create the AMI. These tags are *not* applied to the
     resulting AMI unless they're duplicated in `tags`. This is a [template
@@ -294,6 +298,12 @@ builder.
 
 -   `skip_region_validation` (boolean) - Set to true if you want to skip
     validation of the region configuration option. Default `false`.
+
+-   `skip_save_build_region` (boolean) - If true, Packer will not check whether
+    an AMI with the `ami_name` exists in the region it is building in. It will
+    use an intermediary AMI name, which it will not convert to an AMI in the
+    build region. It will copy the intermediary AMI into any regions provided
+    in `ami_regions`, then delete the intermediary AMI. Default `false`.
 
 -   `snapshot_groups` (array of strings) - A list of groups that have access to
     create volumes from the snapshot(s). By default no groups have permission
