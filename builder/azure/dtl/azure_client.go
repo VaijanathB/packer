@@ -9,8 +9,10 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	newCompute "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-03-01/compute"
 	dtl "github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2018-01-01/network"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-02-01/resources"
@@ -42,13 +44,17 @@ type AzureClient struct {
 	armStorage.AccountsClient
 	compute.DisksClient
 	compute.SnapshotsClient
+	newCompute.GalleryImageVersionsClient
+	newCompute.GalleryImagesClient
 
-	InspectorMaxLength      int
-	Template                *CaptureTemplate
-	LastError               azureErrorResponse
-	VaultClientDelete       common.VaultClient
-	DtlVirtualMachineClient dtl.VirtualMachinesClient
-	dtlCustomImageClient    dtl.CustomImagesClient
+	InspectorMaxLength       int
+	Template                 *CaptureTemplate
+	LastError                azureErrorResponse
+	VaultClientDelete        common.VaultClient
+	DtlLabsClient            dtl.LabsClient
+	DtlVirtualMachineClient  dtl.VirtualMachinesClient
+	DtlCustomImageClient     dtl.CustomImagesClient
+	DtlVirtualNetworksClient dtl.VirtualNetworksClient
 }
 
 func getCaptureResponse(body string) *CaptureTemplate {
@@ -126,7 +132,7 @@ func byConcatDecorators(decorators ...autorest.RespondDecorator) autorest.Respon
 }
 
 func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string,
-	cloud *azure.Environment,
+	cloud *azure.Environment, SharedGalleryTimeout time.Duration,
 	servicePrincipalToken, servicePrincipalTokenVault *adal.ServicePrincipalToken) (*AzureClient, error) {
 
 	var azureClient = &AzureClient{}
@@ -199,11 +205,23 @@ func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string
 	azureClient.DtlVirtualMachineClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
 	azureClient.DtlVirtualMachineClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.DtlVirtualMachineClient.UserAgent)
 
-	azureClient.dtlCustomImageClient = dtl.NewCustomImagesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
-	azureClient.dtlCustomImageClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
-	azureClient.dtlCustomImageClient.RequestInspector = withInspection(maxlen)
-	azureClient.dtlCustomImageClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
-	azureClient.dtlCustomImageClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.dtlCustomImageClient.UserAgent)
+	azureClient.DtlLabsClient = dtl.NewLabsClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.DtlLabsClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.DtlLabsClient.RequestInspector = withInspection(maxlen)
+	azureClient.DtlLabsClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
+	azureClient.DtlLabsClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.DtlLabsClient.UserAgent)
+
+	azureClient.DtlCustomImageClient = dtl.NewCustomImagesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.DtlCustomImageClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.DtlCustomImageClient.RequestInspector = withInspection(maxlen)
+	azureClient.DtlCustomImageClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
+	azureClient.DtlCustomImageClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.DtlCustomImageClient.UserAgent)
+
+	azureClient.DtlVirtualNetworksClient = dtl.NewVirtualNetworksClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.DtlVirtualNetworksClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.DtlVirtualNetworksClient.RequestInspector = withInspection(maxlen)
+	azureClient.DtlVirtualNetworksClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), templateCapture(azureClient), errorCapture(azureClient))
+	azureClient.DtlVirtualNetworksClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.DtlVirtualNetworksClient.UserAgent)
 
 	azureClient.SnapshotsClient = compute.NewSnapshotsClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
 	azureClient.SnapshotsClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
@@ -216,6 +234,19 @@ func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string
 	azureClient.AccountsClient.RequestInspector = withInspection(maxlen)
 	azureClient.AccountsClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
 	azureClient.AccountsClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.AccountsClient.UserAgent)
+
+	azureClient.GalleryImageVersionsClient = newCompute.NewGalleryImageVersionsClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.GalleryImageVersionsClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.GalleryImageVersionsClient.RequestInspector = withInspection(maxlen)
+	azureClient.GalleryImageVersionsClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
+	azureClient.GalleryImageVersionsClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.GalleryImageVersionsClient.UserAgent)
+	azureClient.GalleryImageVersionsClient.Client.PollingDuration = SharedGalleryTimeout
+
+	azureClient.GalleryImagesClient = newCompute.NewGalleryImagesClientWithBaseURI(cloud.ResourceManagerEndpoint, subscriptionID)
+	azureClient.GalleryImagesClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalToken)
+	azureClient.GalleryImagesClient.RequestInspector = withInspection(maxlen)
+	azureClient.GalleryImagesClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
+	azureClient.GalleryImagesClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.GalleryImagesClient.UserAgent)
 
 	keyVaultURL, err := url.Parse(cloud.KeyVaultEndpoint)
 	if err != nil {

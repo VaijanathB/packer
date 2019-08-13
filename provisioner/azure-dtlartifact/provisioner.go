@@ -108,6 +108,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packer.Ui, comm packer.C
 		"", // resource group and Storage account required for non managed build.
 		"", // resource group and Storage account required for non managed build.
 		p.config.ClientConfig.CloudEnvironment,
+		0,
 		spnCloud,
 		spnKeyVault)
 

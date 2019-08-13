@@ -73,6 +73,14 @@ type SharedImageGallery struct {
 	ImageVersion  string `mapstructure:"image_version"`
 }
 
+type SharedImageGalleryDestination struct {
+	SigDestinationResourceGroup      string   `mapstructure:"resource_group"`
+	SigDestinationGalleryName        string   `mapstructure:"gallery_name"`
+	SigDestinationImageName          string   `mapstructure:"image_name"`
+	SigDestinationImageVersion       string   `mapstructure:"image_version"`
+	SigDestinationReplicationRegions []string `mapstructure:"replication_regions"`
+}
+
 type DtlArtifact struct {
 	ArtifactName string              `mapstructure:"artifact_name"`
 	ArtifactId   string              `mapstructure:"artifact_id"`
@@ -97,6 +105,10 @@ type Config struct {
 
 	// Shared Gallery
 	SharedGallery SharedImageGallery `mapstructure:"shared_image_gallery"`
+
+	// Shared Gallery Destination
+	SharedGalleryDestination SharedImageGalleryDestination `mapstructure:"shared_image_gallery_destination"`
+	SharedGalleryTimeout     time.Duration                 `mapstructure:"shared_image_gallery_timeout"`
 
 	// Compute
 	ImagePublisher string `mapstructure:"image_publisher"`
