@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	dtl "github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	armstorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2017-10-01/storage"
-	//dtl "github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 
 	"github.com/Azure/azure-sdk-for-go/storage"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -92,6 +92,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		b.config.ResourceGroupName,
 		b.config.StorageAccount,
 		b.config.CloudEnvironment,
+		b.config.SharedGalleryTimeout,
 		spnCloud,
 		spnKeyVault)
 
@@ -179,6 +180,53 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 
 	deploymentName := b.stateBag.Get(constants.ArmDeploymentName).(string)
 
+	// For Managed Images, validate that Shared Gallery Image exists before publishing to SIG
+	if b.config.isManagedImage() && b.config.SharedGalleryDestination.SigDestinationGalleryName != "" {
+		_, err = azureClient.GalleryImagesClient.Get(ctx, b.config.SharedGalleryDestination.SigDestinationResourceGroup, b.config.SharedGalleryDestination.SigDestinationGalleryName, b.config.SharedGalleryDestination.SigDestinationImageName)
+		if err != nil {
+			return nil, fmt.Errorf("The Shared Gallery Image to which to publish the managed image version to does not exist in the resource group %s", b.config.SharedGalleryDestination.SigDestinationResourceGroup)
+		}
+		// SIG requires that replication regions include the region in which the Managed Image resides
+		managedImageLocation := normalizeAzureRegion(b.stateBag.Get(constants.ArmLocation).(string))
+		foundMandatoryReplicationRegion := false
+		var normalizedReplicationRegions []string
+		for _, region := range b.config.SharedGalleryDestination.SigDestinationReplicationRegions {
+			// change region to lower-case and strip spaces
+			normalizedRegion := normalizeAzureRegion(region)
+			normalizedReplicationRegions = append(normalizedReplicationRegions, normalizedRegion)
+			if strings.EqualFold(normalizedRegion, managedImageLocation) {
+				foundMandatoryReplicationRegion = true
+				continue
+			}
+		}
+		if foundMandatoryReplicationRegion == false {
+			b.config.SharedGalleryDestination.SigDestinationReplicationRegions = append(normalizedReplicationRegions, managedImageLocation)
+		}
+		b.stateBag.Put(constants.ArmManagedImageSharedGalleryReplicationRegions, b.config.SharedGalleryDestination.SigDestinationReplicationRegions)
+	}
+
+	// Find the lab location
+
+	lab, err := azureClient.DtlLabsClient.Get(ctx, b.config.LabResourceGroupName, b.config.LabName, "")
+	if err != nil {
+		return nil, fmt.Errorf("Unable to fetch the Lab %s information in %s resource group", b.config.LabName, b.config.LabResourceGroupName)
+	}
+
+	b.config.Location = *lab.Location
+
+	if b.config.LabVirtualNetworkName == "" || b.config.LabSubnetName == "" {
+		// Find the first subnet that has space and create VM in that.
+		virtualNetowrk, subnet, err := b.getSubnetInformation(ctx, ui, *azureClient)
+
+		if err != nil {
+			return nil, err
+		}
+		b.config.LabVirtualNetworkName = *virtualNetowrk
+		b.config.LabSubnetName = *subnet
+
+		ui.Say(fmt.Sprintf("No lab network information provided. Using %s Virtual network and %s subnet for Virtual Machine creation.", b.config.LabVirtualNetworkName, b.config.LabSubnetName))
+	}
+
 	if b.config.OSType == constants.Target_Linux {
 		steps = []multistep.Step{
 			//NewStepCreateResourceGroup(azureClient, ui),
@@ -200,6 +248,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			NewStepSnapshotOSDisk(azureClient, ui, b.config),
 			NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
+			NewStepPublishToSharedImageGallery(azureClient, ui, b.config),
 			// NewStepDeleteResourceGroup(azureClient, ui),
 			NewStepDeleteOSDisk(azureClient, ui),
 			NewStepDeleteAdditionalDisks(azureClient, ui),
@@ -371,6 +420,13 @@ func (b *Builder) configureStateBag(stateBag multistep.StateBag) {
 	stateBag.Put(constants.ArmManagedImageOSDiskSnapshotName, b.config.ManagedImageOSDiskSnapshotName)
 	stateBag.Put(constants.ArmManagedImageDataDiskSnapshotPrefix, b.config.ManagedImageDataDiskSnapshotPrefix)
 	stateBag.Put(constants.ArmAsyncResourceGroupDelete, b.config.AsyncResourceGroupDelete)
+	if b.config.isManagedImage() && b.config.SharedGalleryDestination.SigDestinationGalleryName != "" {
+		stateBag.Put(constants.ArmManagedImageSigPublishResourceGroup, b.config.SharedGalleryDestination.SigDestinationResourceGroup)
+		stateBag.Put(constants.ArmManagedImageSharedGalleryName, b.config.SharedGalleryDestination.SigDestinationGalleryName)
+		stateBag.Put(constants.ArmManagedImageSharedGalleryImageName, b.config.SharedGalleryDestination.SigDestinationImageName)
+		stateBag.Put(constants.ArmManagedImageSharedGalleryImageVersion, b.config.SharedGalleryDestination.SigDestinationImageVersion)
+		stateBag.Put(constants.ArmManagedImageSubscription, b.config.SubscriptionID)
+	}
 }
 
 // Parameters that are only known at runtime after querying Azure.
@@ -391,6 +447,45 @@ func (b *Builder) getServicePrincipalTokens(say func(string)) (*adal.ServicePrin
 	return b.config.ClientConfig.GetServicePrincipalTokens(say)
 }
 
+func (b *Builder) getSubnetInformation(ctx context.Context, ui packer.Ui, azClient AzureClient) (*string, *string, error) {
+	num := int32(10)
+	virtualNetworkPage, err := azClient.DtlVirtualNetworksClient.List(ctx, b.config.LabResourceGroupName, b.config.LabName, "", "", &num, "")
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error retrieving Virtual networks in Resourcegroup %s", b.config.LabResourceGroupName)
+	}
+
+	virtualNetworks := virtualNetworkPage.Values()
+	for _, virtualNetwork := range virtualNetworks {
+		usageList, err := azClient.VirtualNetworksClient.ListUsage(ctx, b.config.LabResourceGroupName, *virtualNetwork.Name)
+		if err != nil {
+			return nil, nil, fmt.Errorf("Error retrieving Virtual network Usage for VirtualNetwork %s", *virtualNetwork.Name)
+		}
+		for _, subnet := range usageList.Values() {
+
+			// Check first if the subnet has allowed capacity.
+			ui.Say(*subnet.ID)
+			ui.Say(fmt.Sprintf("Current Value %f and Limit %d", *subnet.CurrentValue, *subnet.Limit))
+			if int(*subnet.CurrentValue) < int(*subnet.Limit) {
+				xs := strings.Split(*subnet.ID, "/")
+				for _, subnetOverride := range *virtualNetwork.SubnetOverrides {
+					// Check if the Subnet is allowed to create VMs having Public IP
+					if *subnetOverride.LabSubnetName == xs[len(xs)-1] && subnetOverride.UseInVMCreationPermission == dtl.Allow && subnetOverride.UsePublicIPAddressPermission == dtl.Allow {
+						ui.Say(xs[len(xs)-3])
+						ui.Say(xs[len(xs)-1])
+						// Return Virtual Network Name and Subnet Name
+						return &xs[len(xs)-3], &xs[len(xs)-1], nil
+					}
+				}
+
+			}
+		}
+
+	}
+	return nil, nil, fmt.Errorf("No available Subnet with available space in resource group %s", b.config.LabResourceGroupName)
+
+}
+
 func getObjectIdFromToken(ui packer.Ui, token *adal.ServicePrincipalToken) string {
 	claims := jwt.MapClaims{}
 	var p jwt.Parser
@@ -405,4 +500,8 @@ func getObjectIdFromToken(ui packer.Ui, token *adal.ServicePrincipalToken) strin
 	}
 	return claims["oid"].(string)
 
+}
+
+func normalizeAzureRegion(name string) string {
+	return strings.ToLower(strings.Replace(name, " ", "", -1))
 }

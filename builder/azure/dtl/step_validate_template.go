@@ -42,6 +42,7 @@ func (s *StepValidateTemplate) validateTemplate(ctx context.Context, resourceGro
 	// 	s.say(s.client.LastError.Error())
 	// }
 	// return err
+	// _, err = s.client.DtlVirtualMachineClient
 	return nil
 }
 

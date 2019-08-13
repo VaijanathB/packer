@@ -77,11 +77,11 @@ func (s *StepCaptureImage) captureImageFromVM(ctx context.Context) error {
 		CustomImageProperties: customImageProperties,
 	}
 
-	f, err := s.client.dtlCustomImageClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.ManagedImageName, *customImage)
+	f, err := s.client.DtlCustomImageClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.ManagedImageName, *customImage)
 	if err != nil {
 		s.say(s.client.LastError.Error())
 	}
-	return f.WaitForCompletionRef(ctx, s.client.dtlCustomImageClient.Client)
+	return f.WaitForCompletionRef(ctx, s.client.DtlCustomImageClient.Client)
 }
 
 func (s *StepCaptureImage) captureImage(ctx context.Context, resourceGroupName string, computeName string, parameters *compute.VirtualMachineCaptureParameters) error {
