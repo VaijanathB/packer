@@ -170,7 +170,6 @@ func (c ClientConfig) UseMSI() bool {
 func (c ClientConfig) GetServicePrincipalTokens(
 	say func(string)) (
 	servicePrincipalToken *adal.ServicePrincipalToken,
-	servicePrincipalTokenVault *adal.ServicePrincipalToken,
 	err error) {
 
 	tenantID := c.TenantID
@@ -190,7 +189,7 @@ func (c ClientConfig) GetServicePrincipalTokens(
 		say("Getting tokens using client certificate")
 		auth, err = NewCertOAuthTokenProvider(*c.CloudEnvironment, c.ClientID, c.ClientCertPath, tenantID)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	} else {
 		say("Getting tokens using client bearer JWT")
@@ -199,24 +198,13 @@ func (c ClientConfig) GetServicePrincipalTokens(
 
 	servicePrincipalToken, err = auth.getServicePrincipalToken()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = servicePrincipalToken.EnsureFresh()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	servicePrincipalTokenVault, err = auth.getServicePrincipalTokenWithResource(
-		strings.TrimRight(c.CloudEnvironment.KeyVaultEndpoint, "/"))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	err = servicePrincipalTokenVault.EnsureFresh()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return servicePrincipalToken, servicePrincipalTokenVault, nil
+	return servicePrincipalToken, nil
 }

@@ -32,18 +32,16 @@ func NewStepValidateTemplate(client *AzureClient, ui packer.Ui, config *Config, 
 }
 
 func (s *StepValidateTemplate) validateTemplate(ctx context.Context, resourceGroupName string, deploymentName string) error {
-	//deployment, err := s.factory(s.config)
-	// if err != nil {
-	// 	return err
-	// }
+	deployment, err := s.factory(s.config)
+	if err != nil {
+		return err
+	}
 
-	// _, err = s.client.DtlVirtualMachineClient.Validate(ctx, resourceGroupName, s.config.LabName, s.config.tmpComputeName, *deployment)
-	// if err != nil {
-	// 	s.say(s.client.LastError.Error())
-	// }
-	// return err
-	// _, err = s.client.DtlVirtualMachineClient
-	return nil
+	_, err = s.client.DeploymentsClient.Validate(ctx, resourceGroupName, deploymentName, *deployment)
+	if err != nil {
+		s.say(s.client.LastError.Error())
+	}
+	return err
 }
 
 func (s *StepValidateTemplate) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
