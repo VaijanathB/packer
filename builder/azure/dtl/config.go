@@ -82,9 +82,10 @@ type SharedImageGalleryDestination struct {
 }
 
 type DtlArtifact struct {
-	ArtifactName string              `mapstructure:"artifact_name"`
-	ArtifactId   string              `mapstructure:"artifact_id"`
-	Parameters   []ArtifactParameter `mapstructure:"parameters"`
+	ArtifactName   string              `mapstructure:"artifact_name"`
+	RepositoryName string              `mapstructure:"repository_name"`
+	ArtifactId     string              `mapstructure:"artifact_id"`
+	Parameters     []ArtifactParameter `mapstructure:"parameters"`
 }
 
 type ArtifactParameter struct {
@@ -154,13 +155,14 @@ type Config struct {
 	OSDiskSizeGB int32  `mapstructure:"os_disk_size_gb"`
 
 	// DTL values
-	StorageType           string        `mapstructure:"storage_type"`
-	LabVirtualNetworkName string        `mapstructure:"lab_virtual_network_name"`
-	LabName               string        `mapstructure:"lab_name"`
-	LabSubnetName         string        `mapstructure:"lab_subnet_name"`
-	LabResourceGroupName  string        `mapstructure:"lab_resource_group_name"`
-	DtlArtifacts          []DtlArtifact `mapstructure:"dtl_artifacts"`
-	VMName                string        `mapstructure:"vm_name"`
+	StorageType           string `mapstructure:"storage_type"`
+	LabVirtualNetworkName string `mapstructure:"lab_virtual_network_name"`
+	LabName               string `mapstructure:"lab_name"`
+	LabSubnetName         string `mapstructure:"lab_subnet_name"`
+	LabResourceGroupName  string `mapstructure:"lab_resource_group_name"`
+
+	DtlArtifacts []DtlArtifact `mapstructure:"dtl_artifacts"`
+	VMName       string        `mapstructure:"vm_name"`
 
 	// Additional Disks
 	AdditionalDiskSize []int32 `mapstructure:"disk_additional_size"`
@@ -188,6 +190,7 @@ type Config struct {
 
 	// Authentication with the VM via WinRM
 	winrmCertificate string
+	winrmPassword    string
 
 	Comm communicator.Config `mapstructure:",squash"`
 	ctx  interpolate.Context
@@ -239,21 +242,21 @@ func (c *Config) toImageParameters() *compute.Image {
 	}
 }
 
-func (c *Config) createCertificate() (string, error) {
+func (c *Config) createCertificate() (string, string, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		err = fmt.Errorf("Failed to Generate Private Key: %s", err)
-		return "", err
+		return "", "", err
 	}
 
-	host := fmt.Sprintf("%s.cloudapp.net", c.tmpComputeName)
+	host := fmt.Sprintf("%s.centralus.cloudapp.azure.com", c.tmpComputeName)
 	notBefore := time.Now()
 	notAfter := notBefore.Add(24 * time.Hour)
 
 	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	if err != nil {
 		err = fmt.Errorf("Failed to Generate Serial Number: %v", err)
-		return "", err
+		return "", "", err
 	}
 
 	template := x509.Certificate{
@@ -275,13 +278,13 @@ func (c *Config) createCertificate() (string, error) {
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
 	if err != nil {
 		err = fmt.Errorf("Failed to Create Certificate: %s", err)
-		return "", err
+		return "", "", err
 	}
 
 	pfxBytes, err := pkcs12.Encode(derBytes, privateKey, c.tmpCertificatePassword)
 	if err != nil {
 		err = fmt.Errorf("Failed to encode certificate as PFX: %s", err)
-		return "", err
+		return "", "", err
 	}
 
 	keyVaultDescription := keyVaultCertificate{
@@ -293,10 +296,16 @@ func (c *Config) createCertificate() (string, error) {
 	bytes, err := json.Marshal(keyVaultDescription)
 	if err != nil {
 		err = fmt.Errorf("Failed to marshal key vault description: %s", err)
-		return "", err
+		return "", "", err
 	}
 
-	return base64.StdEncoding.EncodeToString(bytes), nil
+	// hasher := sha1.New()
+	// if _, err := hasher.Write(bytes); err != nil {
+	// 	return "", "", err
+	// }
+	// thumbprint := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
+	certifcatePassowrd := base64.StdEncoding.EncodeToString([]byte(c.tmpCertificatePassword))
+	return base64.StdEncoding.EncodeToString(bytes), certifcatePassowrd, nil
 }
 
 func newConfig(raws ...interface{}) (*Config, []string, error) {
@@ -394,8 +403,10 @@ func setWinRMCertificate(c *Config) error {
 			return &winrm.ClientNTLM{}
 		}
 
-	cert, err := c.createCertificate()
+	cert, password, err := c.createCertificate()
+
 	c.winrmCertificate = cert
+	c.winrmPassword = password
 
 	return err
 }

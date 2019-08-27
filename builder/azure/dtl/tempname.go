@@ -40,9 +40,8 @@ func NewTempName(c *Config) *TempName {
 	tempName.VirtualNetworkName = fmt.Sprintf("pkrvn%s", suffix)
 	tempName.ResourceGroupName = fmt.Sprintf("packer-Resource-Group-%s", suffix)
 
-	tempName.AdminPassword = generatePassword()
-	tempName.CertificatePassword = random.AlphaNum(32)
-
+	tempName.AdminPassword = "Microsoft~1"
+	tempName.CertificatePassword = "Microsoft~1"
 	return tempName
 }
 

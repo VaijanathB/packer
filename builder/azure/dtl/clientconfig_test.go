@@ -137,7 +137,7 @@ func Test_ClientConfig_DeviceLogin(t *testing.T) {
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.GetServicePrincipalTokens(
+	spt, err := cfg.GetServicePrincipalTokens(
 		func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
@@ -149,13 +149,13 @@ func Test_ClientConfig_DeviceLogin(t *testing.T) {
 	if token.RefreshToken == "" {
 		t.Fatal("Expected management token to have non-nil refresh token")
 	}
-	kvtoken := sptkv.Token()
-	if kvtoken.AccessToken == "" {
-		t.Fatal("Expected keyvault token to have non-nil access token")
-	}
-	if kvtoken.RefreshToken == "" {
-		t.Fatal("Expected keyvault token to have non-nil refresh token")
-	}
+	// kvtoken := sptkv.Token()
+	// if kvtoken.AccessToken == "" {
+	// 	t.Fatal("Expected keyvault token to have non-nil access token")
+	// }
+	// if kvtoken.RefreshToken == "" {
+	// 	t.Fatal("Expected keyvault token to have non-nil refresh token")
+	// }
 }
 
 func Test_ClientConfig_ClientPassword(t *testing.T) {
@@ -168,7 +168,7 @@ func Test_ClientConfig_ClientPassword(t *testing.T) {
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
+	spt, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
 	}
@@ -179,13 +179,13 @@ func Test_ClientConfig_ClientPassword(t *testing.T) {
 	if token.RefreshToken != "" {
 		t.Fatal("Expected management token to have no refresh token")
 	}
-	kvtoken := sptkv.Token()
-	if kvtoken.AccessToken == "" {
-		t.Fatal("Expected keyvault token to have non-nil access token")
-	}
-	if kvtoken.RefreshToken != "" {
-		t.Fatal("Expected keyvault token to have no refresh token")
-	}
+	// kvtoken := sptkv.Token()
+	// if kvtoken.AccessToken == "" {
+	// 	t.Fatal("Expected keyvault token to have non-nil access token")
+	// }
+	// if kvtoken.RefreshToken != "" {
+	// 	t.Fatal("Expected keyvault token to have no refresh token")
+	// }
 }
 
 func Test_ClientConfig_ClientCert(t *testing.T) {
@@ -198,7 +198,7 @@ func Test_ClientConfig_ClientCert(t *testing.T) {
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
+	spt, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
 	}
@@ -209,13 +209,13 @@ func Test_ClientConfig_ClientCert(t *testing.T) {
 	if token.RefreshToken != "" {
 		t.Fatal("Expected management token to have no refresh token")
 	}
-	kvtoken := sptkv.Token()
-	if kvtoken.AccessToken == "" {
-		t.Fatal("Expected keyvault token to have non-nil access token")
-	}
-	if kvtoken.RefreshToken != "" {
-		t.Fatal("Expected keyvault token to have no refresh token")
-	}
+	// kvtoken := sptkv.Token()
+	// if kvtoken.AccessToken == "" {
+	// 	t.Fatal("Expected keyvault token to have non-nil access token")
+	// }
+	// if kvtoken.RefreshToken != "" {
+	// 	t.Fatal("Expected keyvault token to have no refresh token")
+	// }
 }
 
 func Test_ClientConfig_ClientJWT(t *testing.T) {
@@ -228,7 +228,7 @@ func Test_ClientConfig_ClientJWT(t *testing.T) {
 	}
 	assertValid(t, cfg)
 
-	spt, sptkv, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
+	spt, err := cfg.GetServicePrincipalTokens(func(s string) { fmt.Printf("SAY: %s\n", s) })
 	if err != nil {
 		t.Fatalf("Expected nil err, but got: %v", err)
 	}
@@ -239,13 +239,13 @@ func Test_ClientConfig_ClientJWT(t *testing.T) {
 	if token.RefreshToken != "" {
 		t.Fatal("Expected management token to have no refresh token")
 	}
-	kvtoken := sptkv.Token()
-	if kvtoken.AccessToken == "" {
-		t.Fatal("Expected keyvault token to have non-nil access token")
-	}
-	if kvtoken.RefreshToken != "" {
-		t.Fatal("Expected keyvault token to have no refresh token")
-	}
+	// kvtoken := sptkv.Token()
+	// if kvtoken.AccessToken == "" {
+	// 	t.Fatal("Expected keyvault token to have non-nil access token")
+	// }
+	// if kvtoken.RefreshToken != "" {
+	// 	t.Fatal("Expected keyvault token to have no refresh token")
+	// }
 }
 
 func getEnvOrSkip(t *testing.T, envVar string) string {

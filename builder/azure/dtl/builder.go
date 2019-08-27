@@ -74,7 +74,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	b.stateBag.Put("hook", hook)
 	b.stateBag.Put(constants.Ui, ui)
 
-	spnCloud, spnKeyVault, err := b.getServicePrincipalTokens(ui.Say)
+	spnCloud, err := b.getServicePrincipalTokens(ui.Say)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		b.config.StorageAccount,
 		b.config.CloudEnvironment,
 		b.config.SharedGalleryTimeout,
-		spnCloud,
-		spnKeyVault)
+		spnCloud)
 
 	if err != nil {
 		return nil, err
@@ -230,7 +229,6 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	if b.config.OSType == constants.Target_Linux {
 		steps = []multistep.Step{
 			//NewStepCreateResourceGroup(azureClient, ui),
-			NewStepValidateTemplate(azureClient, ui, b.config, GetVirtualMachineDeployment),
 			NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
 			NewStepGetIPAddress(azureClient, ui, endpointConnectType),
 			&communicator.StepConnectSSH{
@@ -254,42 +252,40 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
 	} else if b.config.OSType == constants.Target_Windows {
-		//keyVaultDeploymentName := b.stateBag.Get(constants.ArmKeyVaultDeploymentName).(string)
 		steps = []multistep.Step{
 			// NewStepCreateResourceGroup(azureClient, ui),
 			// NewStepValidateTemplate(azureClient, ui, b.config, GetKeyVaultDeployment),
-			// NewStepDeployTemplate(azureClient, ui, b.config, keyVaultDeploymentName, GetKeyVaultDeployment),
+			// NewStepDeployKeyVaultTemplate(azureClient, ui, b.config, keyVaultDeploymentName, GetKeyVaultDeployment),
 			// NewStepGetCertificate(azureClient, ui),
 			// NewStepSetCertificate(b.config, ui),
-			// NewStepValidateTemplate(azureClient, ui, b.config, GetVirtualMachineDeployment),
-			// NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
-			// NewStepGetIPAddress(azureClient, ui, endpointConnectType),
-			// &StepSaveWinRMPassword{
-			// 	Password:  b.config.tmpAdminPassword,
-			// 	BuildName: b.config.PackerBuildName,
-			// },
-			// &communicator.StepConnectWinRM{
-			// 	Config: &b.config.Comm,
-			// 	Host: func(stateBag multistep.StateBag) (string, error) {
-			// 		return stateBag.Get(constants.SSHHost).(string), nil
-			// 	},
-			// 	WinRMConfig: func(multistep.StateBag) (*communicator.WinRMConfig, error) {
-			// 		return &communicator.WinRMConfig{
-			// 			Username: b.config.UserName,
-			// 			Password: b.config.tmpAdminPassword,
-			// 		}, nil
-			// 	},
-			// },
-			// &packerCommon.StepProvision{},
-			// NewStepGetOSDisk(azureClient, ui),
-			// NewStepGetAdditionalDisks(azureClient, ui),
-			// NewStepPowerOffCompute(azureClient, ui),
-			// NewStepSnapshotOSDisk(azureClient, ui, b.config),
-			// NewStepSnapshotDataDisks(azureClient, ui, b.config),
-			// NewStepCaptureImage(azureClient, ui),
+			NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
+			NewStepGetIPAddress(azureClient, ui, endpointConnectType),
+			&StepSaveWinRMPassword{
+				Password:  b.config.tmpAdminPassword,
+				BuildName: b.config.PackerBuildName,
+			},
+			&communicator.StepConnectWinRM{
+				Config: &b.config.Comm,
+				Host: func(stateBag multistep.StateBag) (string, error) {
+					return stateBag.Get(constants.SSHHost).(string), nil
+				},
+				WinRMConfig: func(multistep.StateBag) (*communicator.WinRMConfig, error) {
+					return &communicator.WinRMConfig{
+						Username: b.config.UserName,
+						Password: b.config.tmpAdminPassword,
+					}, nil
+				},
+			},
+			&packerCommon.StepProvision{},
+			NewStepGetOSDisk(azureClient, ui),
+			NewStepGetAdditionalDisks(azureClient, ui),
+			NewStepPowerOffCompute(azureClient, ui),
+			NewStepSnapshotOSDisk(azureClient, ui, b.config),
+			NewStepSnapshotDataDisks(azureClient, ui, b.config),
+			NewStepCaptureImage(azureClient, ui, b.config),
 			// NewStepDeleteResourceGroup(azureClient, ui),
-			// NewStepDeleteOSDisk(azureClient, ui),
-			// NewStepDeleteAdditionalDisks(azureClient, ui),
+			NewStepDeleteOSDisk(azureClient, ui),
+			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
 	} else {
 		return nil, fmt.Errorf("Builder does not support the os_type '%s'", b.config.OSType)
@@ -443,7 +439,7 @@ func (b *Builder) setImageParameters(stateBag multistep.StateBag) {
 	stateBag.Put(constants.ArmImageParameters, b.config.toImageParameters())
 }
 
-func (b *Builder) getServicePrincipalTokens(say func(string)) (*adal.ServicePrincipalToken, *adal.ServicePrincipalToken, error) {
+func (b *Builder) getServicePrincipalTokens(say func(string)) (*adal.ServicePrincipalToken, error) {
 	return b.config.ClientConfig.GetServicePrincipalTokens(say)
 }
 
@@ -465,7 +461,7 @@ func (b *Builder) getSubnetInformation(ctx context.Context, ui packer.Ui, azClie
 
 			// Check first if the subnet has allowed capacity.
 			ui.Say(*subnet.ID)
-			ui.Say(fmt.Sprintf("Current Value %f and Limit %d", *subnet.CurrentValue, *subnet.Limit))
+			ui.Say(fmt.Sprintf("Current Value %f and Limit %f", *subnet.CurrentValue, *subnet.Limit))
 			if int(*subnet.CurrentValue) < int(*subnet.Limit) {
 				xs := strings.Split(*subnet.ID, "/")
 				for _, subnetOverride := range *virtualNetwork.SubnetOverrides {
@@ -477,13 +473,10 @@ func (b *Builder) getSubnetInformation(ctx context.Context, ui packer.Ui, azClie
 						return &xs[len(xs)-3], &xs[len(xs)-1], nil
 					}
 				}
-
 			}
 		}
-
 	}
 	return nil, nil, fmt.Errorf("No available Subnet with available space in resource group %s", b.config.LabResourceGroupName)
-
 }
 
 func getObjectIdFromToken(ui packer.Ui, token *adal.ServicePrincipalToken) string {

@@ -100,7 +100,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packer.Ui, comm packer.C
 		}
 	}
 
-	spnCloud, spnKeyVault, err := p.config.ClientConfig.GetServicePrincipalTokens(ui.Say)
+	spnCloud, err := p.config.ClientConfig.GetServicePrincipalTokens(ui.Say)
 
 	ui.Message("Creating Azure Resource Manager (ARM) client ...")
 	azureClient, err := dtlBuilder.NewAzureClient(
@@ -109,8 +109,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packer.Ui, comm packer.C
 		"", // resource group and Storage account required for non managed build.
 		p.config.ClientConfig.CloudEnvironment,
 		0,
-		spnCloud,
-		spnKeyVault)
+		spnCloud)
 
 	if err != nil {
 		ui.Say(fmt.Sprintf("Error saving debug key: %s", err))

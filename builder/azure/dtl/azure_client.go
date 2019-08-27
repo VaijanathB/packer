@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -133,7 +132,7 @@ func byConcatDecorators(decorators ...autorest.RespondDecorator) autorest.Respon
 
 func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string,
 	cloud *azure.Environment, SharedGalleryTimeout time.Duration,
-	servicePrincipalToken, servicePrincipalTokenVault *adal.ServicePrincipalToken) (*AzureClient, error) {
+	servicePrincipalToken *adal.ServicePrincipalToken) (*AzureClient, error) {
 
 	var azureClient = &AzureClient{}
 
@@ -248,16 +247,16 @@ func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string
 	azureClient.GalleryImagesClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
 	azureClient.GalleryImagesClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.GalleryImagesClient.UserAgent)
 
-	keyVaultURL, err := url.Parse(cloud.KeyVaultEndpoint)
-	if err != nil {
-		return nil, err
-	}
+	// keyVaultURL, err := url.Parse(cloud.KeyVaultEndpoint)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	azureClient.VaultClient = common.NewVaultClient(*keyVaultURL)
-	azureClient.VaultClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalTokenVault)
-	azureClient.VaultClient.RequestInspector = withInspection(maxlen)
-	azureClient.VaultClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
-	azureClient.VaultClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.VaultClient.UserAgent)
+	// azureClient.VaultClient = common.NewVaultClient(*keyVaultURL)
+	// azureClient.VaultClient.Authorizer = autorest.NewBearerAuthorizer(servicePrincipalTokenVault)
+	// azureClient.VaultClient.RequestInspector = withInspection(maxlen)
+	// azureClient.VaultClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
+	// azureClient.VaultClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.VaultClient.UserAgent)
 
 	// TODO(boumenot) - SDK still does not have a full KeyVault client.
 	// There are two ways that KeyVault has to be accessed, and each one has their own SPN.  An authenticated SPN

@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/packer/packer"
 )
 
-type StepDeployTemplate struct {
+type StepDeployKeyVaultTemplate struct {
 	client     *AzureClient
 	deploy     func(ctx context.Context, resourceGroupName string, deploymentName string) error
 	delete     func(ctx context.Context, client *AzureClient, resourceType string, resourceName string, resourceGroupName string) error
@@ -21,12 +21,12 @@ type StepDeployTemplate struct {
 	say        func(message string)
 	error      func(e error)
 	config     *Config
-	factory    templateFactoryFuncDtl
+	factory    templateFactoryFunc
 	name       string
 }
 
-func NewStepDeployTemplate(client *AzureClient, ui packer.Ui, config *Config, deploymentName string, factory templateFactoryFuncDtl) *StepDeployTemplate {
-	var step = &StepDeployTemplate{
+func NewStepDeployKeyVaultTemplate(client *AzureClient, ui packer.Ui, config *Config, deploymentName string, factory templateFactoryFunc) *StepDeployKeyVaultTemplate {
+	var step = &StepDeployKeyVaultTemplate{
 		client:  client,
 		say:     func(message string) { ui.Say(message) },
 		error:   func(e error) { ui.Error(e.Error()) },
@@ -42,27 +42,23 @@ func NewStepDeployTemplate(client *AzureClient, ui packer.Ui, config *Config, de
 	return step
 }
 
-func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupName string, deploymentName string) error {
-	s.say("Deploying Template")
+func (s *StepDeployKeyVaultTemplate) deployTemplate(ctx context.Context, resourceGroupName string, deploymentName string) error {
 	deployment, err := s.factory(s.config)
 	if err != nil {
 		return err
 	}
 
-	f, err := s.client.DtlVirtualMachineClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, *deployment)
-
+	f, err := s.client.DeploymentsClient.CreateOrUpdate(ctx, resourceGroupName, deploymentName, *deployment)
 	if err == nil {
-		err = f.WaitForCompletionRef(ctx, s.client.DtlVirtualMachineClient.Client)
+		err = f.WaitForCompletionRef(ctx, s.client.DeploymentsClient.Client)
 	}
 	if err != nil {
 		s.say(s.client.LastError.Error())
 	}
-
 	return err
-
 }
 
-func (s *StepDeployTemplate) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
+func (s *StepDeployKeyVaultTemplate) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
 	s.say("Deploying deployment template ...")
 
 	var resourceGroupName = state.Get(constants.ArmResourceGroupName).(string)
@@ -75,7 +71,7 @@ func (s *StepDeployTemplate) Run(ctx context.Context, state multistep.StateBag) 
 		s.error, state)
 }
 
-func (s *StepDeployTemplate) getImageDetails(ctx context.Context, resourceGroupName string, computeName string) (string, string, error) {
+func (s *StepDeployKeyVaultTemplate) getImageDetails(ctx context.Context, resourceGroupName string, computeName string) (string, string, error) {
 	//We can't depend on constants.ArmOSDiskVhd being set
 	var imageName string
 	var imageType string
@@ -95,7 +91,7 @@ func (s *StepDeployTemplate) getImageDetails(ctx context.Context, resourceGroupN
 }
 
 //TODO(paulmey): move to helpers file
-func deleteResource(ctx context.Context, client *AzureClient, resourceType string, resourceName string, resourceGroupName string) error {
+func deleteKeyVaultResource(ctx context.Context, client *AzureClient, resourceType string, resourceName string, resourceGroupName string) error {
 	switch resourceType {
 	case "Microsoft.Compute/virtualMachines":
 		f, err := client.VirtualMachinesClient.Delete(ctx, resourceGroupName, resourceName)
@@ -129,7 +125,7 @@ func deleteResource(ctx context.Context, client *AzureClient, resourceType strin
 	return nil
 }
 
-func (s *StepDeployTemplate) deleteImage(ctx context.Context, imageType string, imageName string, resourceGroupName string) error {
+func (s *StepDeployKeyVaultTemplate) deleteImage(ctx context.Context, imageType string, imageName string, resourceGroupName string) error {
 	// Managed disk
 	if imageType == "Microsoft.Compute/disks" {
 		xs := strings.Split(imageName, "/")
@@ -157,7 +153,7 @@ func (s *StepDeployTemplate) deleteImage(ctx context.Context, imageType string, 
 	return err
 }
 
-func (s *StepDeployTemplate) Cleanup(state multistep.StateBag) {
+func (s *StepDeployKeyVaultTemplate) Cleanup(state multistep.StateBag) {
 	//Only clean up if this was an existing resource group and the resource group
 	//is marked as created
 	// Just return now
