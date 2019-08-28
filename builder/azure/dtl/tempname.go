@@ -27,7 +27,6 @@ func NewTempName(c *Config) *TempName {
 
 	if c.VMName != "" {
 		suffix = c.VMName // random.AlphaNumLower(10)
-
 	}
 
 	tempName.ComputeName = suffix //fmt.Sprintf("pkrvm%s", suffix)
@@ -40,8 +39,8 @@ func NewTempName(c *Config) *TempName {
 	tempName.VirtualNetworkName = fmt.Sprintf("pkrvn%s", suffix)
 	tempName.ResourceGroupName = fmt.Sprintf("packer-Resource-Group-%s", suffix)
 
-	tempName.AdminPassword = "Microsoft~1"
-	tempName.CertificatePassword = "Microsoft~1"
+	tempName.AdminPassword = generatePassword()
+	tempName.CertificatePassword = random.AlphaNum(32)
 	return tempName
 }
 
