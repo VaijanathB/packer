@@ -3,6 +3,7 @@ package dtl
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 	"github.com/Azure/azure-sdk-for-go/services/resources/mgmt/2018-02-01/resources"
@@ -54,10 +55,8 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 
 	dtlArtifacts := []dtl.ArtifactInstallProperties{}
 
-	//config.DtlArtifacts[0].Parameters[1].Value = config.winrmCertificate
 	if config.DtlArtifacts != nil {
 		for i := range config.DtlArtifacts {
-			///subscriptions/cba4e087-aceb-44f0-970e-65e96eff4081/resourceGroups/packerrg/providers/Microsoft.DevTestLab/labs/packerlab/artifactSources/public repo/artifacts/linux-apt-package"
 			if config.DtlArtifacts[i].RepositoryName == "" {
 				config.DtlArtifacts[i].RepositoryName = "public repo"
 			}
@@ -84,7 +83,31 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 			}
 			dtlArtifacts = append(dtlArtifacts, *dtlArtifact)
 		}
+	}
 
+	if strings.ToLower(config.OSType) == "windows" {
+		// Add mandatory Artifact
+		var winrma = "windows-winrm"
+		var artifactid = fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/artifactSources/public repo/artifacts/%s",
+			config.SubscriptionID,
+			config.tmpResourceGroupName,
+			config.LabName,
+			winrma)
+
+		var hostname = "hostName"
+		var hostNameValue = fmt.Sprintf("%s.%s.cloudapp.azure.com", config.VMName, config.Location)
+		dparams := []dtl.ArtifactParameterProperties{}
+		dp := &dtl.ArtifactParameterProperties{}
+		dp.Name = &hostname
+		dp.Value = &hostNameValue
+		dparams = append(dparams, *dp)
+
+		winrmArtifact := &dtl.ArtifactInstallProperties{
+			ArtifactTitle: &winrma,
+			ArtifactID:    &artifactid,
+			Parameters:    &dparams,
+		}
+		dtlArtifacts = append(dtlArtifacts, *winrmArtifact)
 	}
 
 	labMachineProps := &dtl.LabVirtualMachineProperties{
