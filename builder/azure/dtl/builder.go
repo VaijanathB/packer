@@ -283,7 +283,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			NewStepSnapshotOSDisk(azureClient, ui, b.config),
 			NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
-			// NewStepDeleteResourceGroup(azureClient, ui),
+			NewStepDeleteVirtualMachine(azureClient, ui, b.config),
 			NewStepDeleteOSDisk(azureClient, ui),
 			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
