@@ -170,20 +170,22 @@ type Config struct {
 	diskCachingType    compute.CachingTypes
 
 	// Runtime Values
-	UserName               string
-	Password               string
-	tmpAdminPassword       string
-	tmpCertificatePassword string
-	tmpResourceGroupName   string
-	tmpComputeName         string
-	tmpNicName             string
-	tmpPublicIPAddressName string
-	tmpDeploymentName      string
-	tmpKeyVaultName        string
-	tmpOSDiskName          string
-	tmpSubnetName          string
-	tmpVirtualNetworkName  string
-	tmpWinRMCertificateUrl string
+	UserName                string
+	Password                string
+	tmpAdminPassword        string
+	tmpCertificatePassword  string
+	tmpResourceGroupName    string
+	tmpComputeName          string
+	tmpNicName              string
+	tmpPublicIPAddressName  string
+	tmpDeploymentName       string
+	tmpKeyVaultName         string
+	tmpOSDiskName           string
+	tmpSubnetName           string
+	tmpVirtualNetworkName   string
+	tmpWinRMCertificateUrl  string
+	VMCreationResourceGroup string
+	IsExistingResourceGroup bool
 
 	// Authentication with the VM via SSH
 	sshAuthorizedKey string

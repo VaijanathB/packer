@@ -14,7 +14,7 @@ import (
 
 type StepDeployTemplate struct {
 	client     *AzureClient
-	deploy     func(ctx context.Context, resourceGroupName string, deploymentName string) error
+	deploy     func(ctx context.Context, resourceGroupName string, deploymentName string, state multistep.StateBag) error
 	delete     func(ctx context.Context, client *AzureClient, resourceType string, resourceName string, resourceGroupName string) error
 	disk       func(ctx context.Context, resourceGroupName string, computeName string) (string, string, error)
 	deleteDisk func(ctx context.Context, imageType string, imageName string, resourceGroupName string) error
@@ -42,24 +42,52 @@ func NewStepDeployTemplate(client *AzureClient, ui packer.Ui, config *Config, de
 	return step
 }
 
-func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupName string, deploymentName string) error {
-	s.say("Deploying Template")
-	deployment, err := s.factory(s.config)
+func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupName string, deploymentName string, state multistep.StateBag) error {
+
+	vmlistPage, err := s.client.DtlVirtualMachineClient.List(ctx, s.config.tmpResourceGroupName, s.config.LabName, "", "", nil, "")
+
+	if err != nil {
+		s.say(s.client.LastError.Error())
+	}
+
+	vmList := vmlistPage.Values()
+	for i := range vmList {
+		if *vmList[i].Name == s.config.tmpComputeName {
+			return fmt.Errorf("Error: Virtual Machine %s already exists. Please use another name", s.config.tmpComputeName)
+		}
+	}
+
+	s.say(fmt.Sprintf("Creating Virtual Machine %s", s.config.tmpComputeName))
+	labMachine, err := s.factory(s.config)
 	if err != nil {
 		return err
 	}
 
-	f, err := s.client.DtlVirtualMachineClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, *deployment)
+	f, err := s.client.DtlVirtualMachineClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, *labMachine)
 
 	if err == nil {
 		err = f.WaitForCompletionRef(ctx, s.client.DtlVirtualMachineClient.Client)
 	}
 	if err != nil {
 		s.say(s.client.LastError.Error())
+		return err
 	}
 
-	return err
+	vm, err := s.client.DtlVirtualMachineClient.Get(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, "")
+	if err != nil {
+		s.say(s.client.LastError.Error())
+	}
 
+	xs := strings.Split(*vm.LabVirtualMachineProperties.ComputeID, "/")
+	s.config.VMCreationResourceGroup = xs[4]
+
+	// Resuing the Resource group name from common constants as all steps depend on it.
+	state.Put(constants.ArmResourceGroupName, s.config.VMCreationResourceGroup)
+	state.Put(constants.ArmIsExistingResourceGroup, s.config.IsExistingResourceGroup)
+
+	s.say(fmt.Sprintf(" -> VM ResourceGroupName : '%s'", s.config.VMCreationResourceGroup))
+
+	return err
 }
 
 func (s *StepDeployTemplate) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
@@ -67,11 +95,10 @@ func (s *StepDeployTemplate) Run(ctx context.Context, state multistep.StateBag) 
 
 	var resourceGroupName = state.Get(constants.ArmResourceGroupName).(string)
 
-	s.say(fmt.Sprintf(" -> ResourceGroupName : '%s'", resourceGroupName))
-	s.say(fmt.Sprintf(" -> DeploymentName    : '%s'", s.name))
+	s.say(fmt.Sprintf(" -> Lab ResourceGroupName : '%s'", resourceGroupName))
 
 	return processStepResult(
-		s.deploy(ctx, resourceGroupName, s.name),
+		s.deploy(ctx, resourceGroupName, s.name, state),
 		s.error, state)
 }
 
