@@ -211,6 +211,16 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		return nil, fmt.Errorf("Unable to fetch the Lab %s information in %s resource group", b.config.LabName, b.config.LabResourceGroupName)
 	}
 
+	if lab.VMCreationResourceGroup != nil {
+		b.config.VMCreationResourceGroup = *lab.VMCreationResourceGroup
+		b.config.IsExistingResourceGroup = true
+	} else {
+		// VM's will be created in new resource groups by DTL. VMCreationResourceGroup will be populated from the
+		// VM Compute Id
+		b.config.IsExistingResourceGroup = false
+	}
+	//ui.Say(fmt.Sprintf("Lab VM creation Resource group is %s ", lab.VMCreationResourceGroup))
+
 	b.config.Location = *lab.Location
 
 	if b.config.LabVirtualNetworkName == "" || b.config.LabSubnetName == "" {
@@ -247,6 +257,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
 			NewStepPublishToSharedImageGallery(azureClient, ui, b.config),
+			NewStepDeleteVirtualMachine(azureClient, ui, b.config),
 			// NewStepDeleteResourceGroup(azureClient, ui),
 			NewStepDeleteOSDisk(azureClient, ui),
 			NewStepDeleteAdditionalDisks(azureClient, ui),
@@ -283,6 +294,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			NewStepSnapshotOSDisk(azureClient, ui, b.config),
 			NewStepSnapshotDataDisks(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
+			NewStepPublishToSharedImageGallery(azureClient, ui, b.config),
 			NewStepDeleteVirtualMachine(azureClient, ui, b.config),
 			NewStepDeleteOSDisk(azureClient, ui),
 			NewStepDeleteAdditionalDisks(azureClient, ui),
