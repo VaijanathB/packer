@@ -12,7 +12,7 @@ import (
 type StepDeleteVirtualMachine struct {
 	client *AzureClient
 	config *Config
-	delete func(ctx context.Context, resourceGroupName string, computeName string) error
+	delete func(ctx context.Context, resourceGroupName string, computeName string, state multistep.StateBag) error
 	say    func(message string)
 	error  func(e error)
 }
@@ -29,15 +29,35 @@ func NewStepDeleteVirtualMachine(client *AzureClient, ui packer.Ui, config *Conf
 	return step
 }
 
-func (s *StepDeleteVirtualMachine) deleteVirtualMachine(ctx context.Context, resourceGroupName string, vmName string) error {
-	f, err := s.client.DtlVirtualMachineClient.Delete(ctx, resourceGroupName, s.config.LabName, vmName)
-	if err == nil {
-		err = f.WaitForCompletionRef(ctx, s.client.VirtualMachinesClient.Client)
+func (s *StepDeleteVirtualMachine) deleteVirtualMachine(ctx context.Context, resourceGroupName string, vmName string, state multistep.StateBag) error {
+	if state.Get(constants.ArmIsExistingResourceGroup).(bool) {
+		f, err := s.client.DtlVirtualMachineClient.Delete(ctx, resourceGroupName, s.config.LabName, vmName)
+		if err == nil {
+			err = f.WaitForCompletionRef(ctx, s.client.VirtualMachinesClient.Client)
+		}
+		if err != nil {
+			s.say(s.client.LastError.Error())
+		}
+
+		return err
+	} else {
+		s.say("\nThe resource group was created by Packer, deleting ...")
+		f, err := s.client.GroupsClient.Delete(ctx, resourceGroupName)
+		if err == nil {
+			if state.Get(constants.ArmAsyncResourceGroupDelete).(bool) {
+				// No need to wait for the completion for delete if request is Accepted
+				s.say(fmt.Sprintf("\nResource Group is being deleted, not waiting for deletion due to config. Resource Group Name '%s'", resourceGroupName))
+			} else {
+				f.WaitForCompletionRef(ctx, s.client.GroupsClient.Client)
+			}
+
+		}
+
+		if err != nil {
+			s.say(s.client.LastError.Error())
+		}
+		return err
 	}
-	if err != nil {
-		s.say(s.client.LastError.Error())
-	}
-	return err
 }
 
 func (s *StepDeleteVirtualMachine) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
@@ -49,7 +69,7 @@ func (s *StepDeleteVirtualMachine) Run(ctx context.Context, state multistep.Stat
 	s.say(fmt.Sprintf(" -> ResourceGroupName : '%s'", resourceGroupName))
 	s.say(fmt.Sprintf(" -> ComputeName       : '%s'", computeName))
 
-	err := s.deleteVirtualMachine(ctx, resourceGroupName, computeName)
+	err := s.deleteVirtualMachine(ctx, resourceGroupName, computeName, state)
 
 	s.say("Deleting virtual machine ...Complete")
 	return processStepResult(err, s.error, state)

@@ -464,6 +464,7 @@ func (b *Builder) getSubnetInformation(ctx context.Context, ui packer.Ui, azClie
 	}
 
 	virtualNetworks := virtualNetworkPage.Values()
+	ui.Say(fmt.Sprintf("VirtualNetworkPage count %d", (virtualNetworkPage.Values())))
 	for _, virtualNetwork := range virtualNetworks {
 		usageList, err := azClient.VirtualNetworksClient.ListUsage(ctx, b.config.LabResourceGroupName, *virtualNetwork.Name)
 		if err != nil {
