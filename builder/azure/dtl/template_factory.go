@@ -36,23 +36,26 @@ func newBool(val bool) *bool {
 		return &b
 	}
 }
-func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachineCreationParameter, error) {
-	customManagedImageID := ""
-	galleryImageRef := dtl.GalleryImageReference{}
+
+func getCustomImageId (config *Config) *string {
 	if config.CustomManagedImageName != "" && config.CustomManagedImageResourceGroupName != "" {
-		customManagedImageID = fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/images/%s",
+		customManagedImageID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/images/%s",
 			config.SubscriptionID,
 			config.CustomManagedImageResourceGroupName,
 			config.CustomManagedImageName)
+		return &customManagedImageID
+	}
+	return nil
+}
 
-	} else {
-		galleryImageRef = dtl.GalleryImageReference{
-			Offer:     &config.ImageOffer,
-			Publisher: &config.ImagePublisher,
-			Sku:       &config.ImageSku,
-			OsType:    &config.OSType,
-			Version:   &config.ImageVersion,
-		}
+func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachineCreationParameter, error) {
+	
+	galleryImageRef := dtl.GalleryImageReference{
+		Offer:     &config.ImageOffer,
+		Publisher: &config.ImagePublisher,
+		Sku:       &config.ImageSku,
+		OsType:    &config.OSType,
+		Version:   &config.ImageVersion,
 	}
 
 	labVirtualNetworkID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/virtualnetworks/%s",
@@ -131,7 +134,7 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachineCreation
 		LabVirtualNetworkID:        &labVirtualNetworkID,
 		DisallowPublicIPAddress:    newBool(false),
 		GalleryImageReference:      &galleryImageRef,
-		CustomImageID:              &customManagedImageID,
+		CustomImageID:              getCustomImageId(config),
 
 		AllowClaim:                   newBool(false),
 		StorageType:                  &config.StorageType,

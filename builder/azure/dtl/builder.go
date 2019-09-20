@@ -114,13 +114,6 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	}
 
 	if b.config.isManagedImage() {
-		// group, err := azureClient.GroupsClient.Get(ctx, b.config.ManagedImageResourceGroupName)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("Cannot locate the managed image resource group %s.", b.config.ManagedImageResourceGroupName)
-		// }
-
-		// b.config.manageImageLocation = *group.Location
-
 		// If a managed image already exists it cannot be overwritten.
 		_, err = azureClient.DtlCustomImageClient.Get(ctx, b.config.ManagedImageResourceGroupName, b.config.LabName, b.config.ManagedImageName, "")
 		if err == nil {
