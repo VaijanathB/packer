@@ -11,15 +11,17 @@ import (
 
 type StepPowerOffCompute struct {
 	client   *AzureClient
-	powerOff func(ctx context.Context, resourceGroupName string, computeName string) error
+	config   *Config
+	powerOff func(ctx context.Context, resourceGroupName string, labName, computeName string) error
 	say      func(message string)
 	error    func(e error)
 }
 
-func NewStepPowerOffCompute(client *AzureClient, ui packer.Ui) *StepPowerOffCompute {
+func NewStepPowerOffCompute(client *AzureClient, ui packer.Ui, config *Config) *StepPowerOffCompute {
 
 	var step = &StepPowerOffCompute{
 		client: client,
+		config: config,
 		say:    func(message string) { ui.Say(message) },
 		error:  func(e error) { ui.Error(e.Error()) },
 	}
@@ -28,10 +30,11 @@ func NewStepPowerOffCompute(client *AzureClient, ui packer.Ui) *StepPowerOffComp
 	return step
 }
 
-func (s *StepPowerOffCompute) powerOffCompute(ctx context.Context, resourceGroupName string, computeName string) error {
-	f, err := s.client.VirtualMachinesClient.Deallocate(ctx, resourceGroupName, computeName)
+func (s *StepPowerOffCompute) powerOffCompute(ctx context.Context, resourceGroupName string, labName, computeName string) error {
+	//f, err := s.client.VirtualMachinesClient.Deallocate(ctx, resourceGroupName, computeName)
+	f, err := s.client.DtlVirtualMachineClient.Stop(ctx, resourceGroupName, labName, computeName)
 	if err == nil {
-		err = f.WaitForCompletionRef(ctx, s.client.VirtualMachinesClient.Client)
+		err = f.WaitForCompletionRef(ctx, s.client.DtlVirtualMachineClient.Client)
 	}
 	if err != nil {
 		s.say(s.client.LastError.Error())
@@ -48,7 +51,7 @@ func (s *StepPowerOffCompute) Run(ctx context.Context, state multistep.StateBag)
 	s.say(fmt.Sprintf(" -> ResourceGroupName : '%s'", resourceGroupName))
 	s.say(fmt.Sprintf(" -> ComputeName       : '%s'", computeName))
 
-	err := s.powerOff(ctx, resourceGroupName, computeName)
+	err := s.powerOff(ctx, resourceGroupName, s.config.LabName, computeName)
 
 	s.say("Powering off machine ...Complete")
 	return processStepResult(err, s.error, state)

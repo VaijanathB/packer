@@ -30,34 +30,16 @@ func NewStepDeleteVirtualMachine(client *AzureClient, ui packer.Ui, config *Conf
 }
 
 func (s *StepDeleteVirtualMachine) deleteVirtualMachine(ctx context.Context, resourceGroupName string, vmName string, state multistep.StateBag) error {
-	if state.Get(constants.ArmIsExistingResourceGroup).(bool) {
-		f, err := s.client.DtlVirtualMachineClient.Delete(ctx, resourceGroupName, s.config.LabName, vmName)
-		if err == nil {
-			err = f.WaitForCompletionRef(ctx, s.client.VirtualMachinesClient.Client)
-		}
-		if err != nil {
-			s.say(s.client.LastError.Error())
-		}
-
-		return err
-	} else {
-		s.say("\nThe resource group was created by Packer, deleting ...")
-		f, err := s.client.GroupsClient.Delete(ctx, resourceGroupName)
-		if err == nil {
-			if state.Get(constants.ArmAsyncResourceGroupDelete).(bool) {
-				// No need to wait for the completion for delete if request is Accepted
-				s.say(fmt.Sprintf("\nResource Group is being deleted, not waiting for deletion due to config. Resource Group Name '%s'", resourceGroupName))
-			} else {
-				f.WaitForCompletionRef(ctx, s.client.GroupsClient.Client)
-			}
-
-		}
-
-		if err != nil {
-			s.say(s.client.LastError.Error())
-		}
-		return err
+	f, err := s.client.DtlVirtualMachineClient.Delete(ctx, resourceGroupName, s.config.LabName, vmName)
+	if err == nil {
+		err = f.WaitForCompletionRef(ctx, s.client.DtlVirtualMachineClient.Client)
 	}
+	if err != nil {
+		s.say("Error from delete VM")
+		s.say(s.client.LastError.Error())
+	}
+
+	return err
 }
 
 func (s *StepDeleteVirtualMachine) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
