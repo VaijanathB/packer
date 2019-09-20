@@ -185,7 +185,6 @@ type Config struct {
 	tmpVirtualNetworkName   string
 	tmpWinRMCertificateUrl  string
 	VMCreationResourceGroup string
-	IsExistingResourceGroup bool
 
 	// Authentication with the VM via SSH
 	sshAuthorizedKey string

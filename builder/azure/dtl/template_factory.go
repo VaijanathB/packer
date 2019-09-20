@@ -10,8 +10,7 @@ import (
 	"github.com/hashicorp/packer/builder/azure/common/template"
 )
 
-type templateFactoryFuncDtl func(*Config) (*dtl.LabVirtualMachine, error)
-type templateFactoryFunc func(*Config) (*resources.Deployment, error)
+type templateFactoryFuncDtl func(*Config) (*dtl.LabVirtualMachineCreationParameter, error)
 
 func GetKeyVaultDeployment(config *Config) (*resources.Deployment, error) {
 	params := &template.TemplateParameters{
@@ -37,16 +36,25 @@ func newBool(val bool) *bool {
 		return &b
 	}
 }
-func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error) {
-	galleryImageRef := &dtl.GalleryImageReference{
-		Offer:     &config.ImageOffer,
-		Publisher: &config.ImagePublisher,
-		Sku:       &config.ImageSku,
-		OsType:    &config.OSType,
-		Version:   &config.ImageVersion,
+func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachineCreationParameter, error) {
+	customManagedImageID := ""
+	galleryImageRef := dtl.GalleryImageReference{}
+	if config.CustomManagedImageName != "" && config.CustomManagedImageResourceGroupName != "" {
+		customManagedImageID = fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/images/%s",
+			config.SubscriptionID,
+			config.CustomManagedImageResourceGroupName,
+			config.CustomManagedImageName)
+
+	} else {
+		galleryImageRef = dtl.GalleryImageReference{
+			Offer:     &config.ImageOffer,
+			Publisher: &config.ImagePublisher,
+			Sku:       &config.ImageSku,
+			OsType:    &config.OSType,
+			Version:   &config.ImageVersion,
+		}
 	}
 
-	// /subscriptions/cba4e087-aceb-44f0-970e-65e96eff4081/resourcegroups/packerrg/providers/microsoft.devtestlab/labs/packerlab/virtualnetworks/dtlpackerlab
 	labVirtualNetworkID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/virtualnetworks/%s",
 		config.SubscriptionID,
 		config.tmpResourceGroupName,
@@ -110,29 +118,32 @@ func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachine, error)
 		dtlArtifacts = append(dtlArtifacts, *winrmArtifact)
 	}
 
-	labMachineProps := &dtl.LabVirtualMachineProperties{
-		CreatedByUserID:              &config.ClientConfig.ClientID,
-		OwnerObjectID:                &config.ClientConfig.ObjectID,
-		OsType:                       &config.OSType,
-		Size:                         &config.VMSize,
-		UserName:                     &config.UserName,
-		Password:                     &config.Password,
-		SSHKey:                       &config.sshAuthorizedKey,
-		IsAuthenticationWithSSHKey:   newBool(true),
-		LabSubnetName:                &config.LabSubnetName,
-		LabVirtualNetworkID:          &labVirtualNetworkID,
-		DisallowPublicIPAddress:      newBool(false),
-		GalleryImageReference:        galleryImageRef,
+	labMachineProps := &dtl.LabVirtualMachineCreationParameterProperties{
+		CreatedByUserID:            &config.ClientConfig.ClientID,
+		OwnerObjectID:              &config.ClientConfig.ObjectID,
+		OsType:                     &config.OSType,
+		Size:                       &config.VMSize,
+		UserName:                   &config.UserName,
+		Password:                   &config.Password,
+		SSHKey:                     &config.sshAuthorizedKey,
+		IsAuthenticationWithSSHKey: newBool(true),
+		LabSubnetName:              &config.LabSubnetName,
+		LabVirtualNetworkID:        &labVirtualNetworkID,
+		DisallowPublicIPAddress:    newBool(false),
+		GalleryImageReference:      &galleryImageRef,
+		CustomImageID:              &customManagedImageID,
+
 		AllowClaim:                   newBool(false),
 		StorageType:                  &config.StorageType,
 		VirtualMachineCreationSource: dtl.FromGalleryImage,
 		Artifacts:                    &dtlArtifacts,
 	}
 
-	labMachine := &dtl.LabVirtualMachine{
-		Location:                    &config.Location,
-		Tags:                        config.AzureTags,
-		LabVirtualMachineProperties: labMachineProps,
+	labMachine := &dtl.LabVirtualMachineCreationParameter{
+		Name:     &config.tmpComputeName,
+		Location: &config.Location,
+		Tags:     config.AzureTags,
+		LabVirtualMachineCreationParameterProperties: labMachineProps,
 	}
 
 	return labMachine, nil

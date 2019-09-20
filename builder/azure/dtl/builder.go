@@ -114,19 +114,19 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	}
 
 	if b.config.isManagedImage() {
-		group, err := azureClient.GroupsClient.Get(ctx, b.config.ManagedImageResourceGroupName)
-		if err != nil {
-			return nil, fmt.Errorf("Cannot locate the managed image resource group %s.", b.config.ManagedImageResourceGroupName)
-		}
+		// group, err := azureClient.GroupsClient.Get(ctx, b.config.ManagedImageResourceGroupName)
+		// if err != nil {
+		// 	return nil, fmt.Errorf("Cannot locate the managed image resource group %s.", b.config.ManagedImageResourceGroupName)
+		// }
 
-		b.config.manageImageLocation = *group.Location
+		// b.config.manageImageLocation = *group.Location
 
 		// If a managed image already exists it cannot be overwritten.
-		_, err = azureClient.ImagesClient.Get(ctx, b.config.ManagedImageResourceGroupName, b.config.ManagedImageName, "")
+		_, err = azureClient.DtlCustomImageClient.Get(ctx, b.config.ManagedImageResourceGroupName, b.config.LabName, b.config.ManagedImageName, "")
 		if err == nil {
 			if b.config.PackerForce {
 				ui.Say(fmt.Sprintf("the managed image named %s already exists, but deleting it due to -force flag", b.config.ManagedImageName))
-				f, err := azureClient.ImagesClient.Delete(ctx, b.config.ManagedImageResourceGroupName, b.config.ManagedImageName)
+				f, err := azureClient.DtlVirtualMachineClient.Delete(ctx, b.config.ManagedImageResourceGroupName, b.config.LabName, b.config.ManagedImageName)
 				if err == nil {
 					err = f.WaitForCompletionRef(ctx, azureClient.ImagesClient.Client)
 				}
@@ -152,25 +152,6 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	}
 
 	b.config.validateLocationZoneResiliency(ui.Say)
-
-	if b.config.StorageAccount != "" {
-		account, err := b.getBlobAccount(ctx, azureClient, b.config.ResourceGroupName, b.config.StorageAccount)
-		if err != nil {
-			return nil, err
-		}
-		b.config.storageAccountBlobEndpoint = *account.AccountProperties.PrimaryEndpoints.Blob
-
-		if !equalLocation(*account.Location, b.config.Location) {
-			return nil, fmt.Errorf("The storage account is located in %s, but the build will take place in %s. The locations must be identical", *account.Location, b.config.Location)
-		}
-	}
-
-	endpointConnectType := PublicEndpoint
-	if b.isPublicPrivateNetworkCommunication() && b.isPrivateNetworkCommunication() {
-		endpointConnectType = PublicEndpointInPrivateNetwork
-	} else if b.isPrivateNetworkCommunication() {
-		endpointConnectType = PrivateEndpoint
-	}
 
 	b.setRuntimeParameters(b.stateBag)
 	b.setTemplateParameters(b.stateBag)
@@ -211,20 +192,9 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		return nil, fmt.Errorf("Unable to fetch the Lab %s information in %s resource group", b.config.LabName, b.config.LabResourceGroupName)
 	}
 
-	if lab.VMCreationResourceGroup != nil {
-		b.config.VMCreationResourceGroup = *lab.VMCreationResourceGroup
-		b.config.IsExistingResourceGroup = true
-	} else {
-		// VM's will be created in new resource groups by DTL. VMCreationResourceGroup will be populated from the
-		// VM Compute Id
-		b.config.IsExistingResourceGroup = false
-	}
-	//ui.Say(fmt.Sprintf("Lab VM creation Resource group is %s ", lab.VMCreationResourceGroup))
-
 	b.config.Location = *lab.Location
 
 	if b.config.LabVirtualNetworkName == "" || b.config.LabSubnetName == "" {
-		// Find the first subnet that has space and create VM in that.
 		virtualNetowrk, subnet, err := b.getSubnetInformation(ctx, ui, *azureClient)
 
 		if err != nil {
@@ -233,14 +203,12 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		b.config.LabVirtualNetworkName = *virtualNetowrk
 		b.config.LabSubnetName = *subnet
 
-		ui.Say(fmt.Sprintf("No lab network information provided. Using %s Virtual network and %s subnet for Virtual Machine creation.", b.config.LabVirtualNetworkName, b.config.LabSubnetName))
+		ui.Message(fmt.Sprintf("No lab network information provided. Using %s Virtual network and %s subnet for Virtual Machine creation", b.config.LabVirtualNetworkName, b.config.LabSubnetName))
 	}
 
 	if b.config.OSType == constants.Target_Linux {
 		steps = []multistep.Step{
-			//NewStepCreateResourceGroup(azureClient, ui),
 			NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
-			NewStepGetIPAddress(azureClient, ui, endpointConnectType),
 			&communicator.StepConnectSSH{
 				Config:    &b.config.Comm,
 				Host:      lin.SSHHost,
@@ -250,27 +218,14 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			&packerCommon.StepCleanupTempKeys{
 				Comm: &b.config.Comm,
 			},
-			NewStepGetOSDisk(azureClient, ui),
-			NewStepGetAdditionalDisks(azureClient, ui),
-			NewStepPowerOffCompute(azureClient, ui),
-			NewStepSnapshotOSDisk(azureClient, ui, b.config),
-			NewStepSnapshotDataDisks(azureClient, ui, b.config),
+			NewStepPowerOffCompute(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
 			NewStepPublishToSharedImageGallery(azureClient, ui, b.config),
 			NewStepDeleteVirtualMachine(azureClient, ui, b.config),
-			// NewStepDeleteResourceGroup(azureClient, ui),
-			NewStepDeleteOSDisk(azureClient, ui),
-			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
 	} else if b.config.OSType == constants.Target_Windows {
 		steps = []multistep.Step{
-			// NewStepCreateResourceGroup(azureClient, ui),
-			// NewStepValidateTemplate(azureClient, ui, b.config, GetKeyVaultDeployment),
-			// NewStepDeployKeyVaultTemplate(azureClient, ui, b.config, keyVaultDeploymentName, GetKeyVaultDeployment),
-			// NewStepGetCertificate(azureClient, ui),
-			// NewStepSetCertificate(b.config, ui),
 			NewStepDeployTemplate(azureClient, ui, b.config, deploymentName, GetVirtualMachineDeployment),
-			NewStepGetIPAddress(azureClient, ui, endpointConnectType),
 			&StepSaveWinRMPassword{
 				Password:  b.config.tmpAdminPassword,
 				BuildName: b.config.PackerBuildName,
@@ -288,16 +243,10 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 				},
 			},
 			&packerCommon.StepProvision{},
-			NewStepGetOSDisk(azureClient, ui),
-			NewStepGetAdditionalDisks(azureClient, ui),
-			NewStepPowerOffCompute(azureClient, ui),
-			NewStepSnapshotOSDisk(azureClient, ui, b.config),
-			NewStepSnapshotDataDisks(azureClient, ui, b.config),
+			NewStepPowerOffCompute(azureClient, ui, b.config),
 			NewStepCaptureImage(azureClient, ui, b.config),
 			NewStepPublishToSharedImageGallery(azureClient, ui, b.config),
 			NewStepDeleteVirtualMachine(azureClient, ui, b.config),
-			NewStepDeleteOSDisk(azureClient, ui),
-			NewStepDeleteAdditionalDisks(azureClient, ui),
 		}
 	} else {
 		return nil, fmt.Errorf("Builder does not support the os_type '%s'", b.config.OSType)
@@ -464,28 +413,14 @@ func (b *Builder) getSubnetInformation(ctx context.Context, ui packer.Ui, azClie
 	}
 
 	virtualNetworks := virtualNetworkPage.Values()
-	ui.Say(fmt.Sprintf("VirtualNetworkPage count %d", (virtualNetworkPage.Values())))
 	for _, virtualNetwork := range virtualNetworks {
-		usageList, err := azClient.VirtualNetworksClient.ListUsage(ctx, b.config.LabResourceGroupName, *virtualNetwork.Name)
-		if err != nil {
-			return nil, nil, fmt.Errorf("Error retrieving Virtual network Usage for VirtualNetwork %s", *virtualNetwork.Name)
-		}
-		for _, subnet := range usageList.Values() {
-
-			// Check first if the subnet has allowed capacity.
-			ui.Say(*subnet.ID)
-			ui.Say(fmt.Sprintf("Current Value %f and Limit %f", *subnet.CurrentValue, *subnet.Limit))
-			if int(*subnet.CurrentValue) < int(*subnet.Limit) {
-				xs := strings.Split(*subnet.ID, "/")
-				for _, subnetOverride := range *virtualNetwork.SubnetOverrides {
-					// Check if the Subnet is allowed to create VMs having Public IP
-					if *subnetOverride.LabSubnetName == xs[len(xs)-1] && subnetOverride.UseInVMCreationPermission == dtl.Allow && subnetOverride.UsePublicIPAddressPermission == dtl.Allow {
-						ui.Say(xs[len(xs)-3])
-						ui.Say(xs[len(xs)-1])
-						// Return Virtual Network Name and Subnet Name
-						return &xs[len(xs)-3], &xs[len(xs)-1], nil
-					}
-				}
+		for _, subnetOverride := range *virtualNetwork.SubnetOverrides {
+			// Check if the Subnet is allowed to create VMs having Public IP
+			if subnetOverride.UseInVMCreationPermission == dtl.Allow && subnetOverride.UsePublicIPAddressPermission == dtl.Allow {
+				// Return Virtual Network Name and Subnet Name
+				// Since we cannot query the Usage information from DTL network we cannot know the current remaining capacity.
+				// TODO (vaangadi) : Fix this to query the subnets that actually have space to create VM.
+				return virtualNetwork.Name, subnetOverride.LabSubnetName, nil
 			}
 		}
 	}

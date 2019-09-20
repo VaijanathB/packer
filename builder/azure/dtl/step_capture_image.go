@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/devtestlabs/mgmt/2018-09-15/dtl"
 
 	"github.com/hashicorp/packer/builder/azure/common/constants"
@@ -14,8 +13,6 @@ import (
 
 type StepCaptureImage struct {
 	client              *AzureClient
-	generalizeVM        func(resourceGroupName, computeName string) error
-	captureVhd          func(ctx context.Context, resourceGroupName string, computeName string, parameters *compute.VirtualMachineCaptureParameters) error
 	captureManagedImage func(ctx context.Context) error
 	get                 func(client *AzureClient) *CaptureTemplate
 	config              *Config
@@ -38,36 +35,23 @@ func NewStepCaptureImage(client *AzureClient, ui packer.Ui, config *Config) *Ste
 		},
 	}
 
-	step.generalizeVM = step.generalize
 	// step.captureVhd = step.captureImage
 	step.captureManagedImage = step.captureImageFromVM
 
 	return step
 }
 
-func (s *StepCaptureImage) generalize(resourceGroupName string, computeName string) error {
-	_, err := s.client.Generalize(context.TODO(), resourceGroupName, computeName)
-	if err != nil {
-		s.say(s.client.LastError.Error())
-	}
-	return err
-}
-
 func (s *StepCaptureImage) captureImageFromVM(ctx context.Context) error {
-	//f, err := s.client.ImagesClient.CreateOrUpdate(ctx, resourceGroupName, imageName, *image)
-
 	imageID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.DevTestLab/labs/%s/virtualMachines/%s",
 		s.config.SubscriptionID,
 		s.config.tmpResourceGroupName,
 		s.config.LabName,
 		s.config.tmpComputeName)
 
-	s.say("Source VM Image id is ...")
-	s.say(imageID)
 	customImageProperties := &dtl.CustomImageProperties{
 		VM: &dtl.CustomImagePropertiesFromVM{
 			LinuxOsInfo: &dtl.LinuxOsInfo{
-				LinuxOsState: dtl.DeprovisionApplied,
+				LinuxOsState: dtl.DeprovisionRequested,
 			},
 			SourceVMID: &imageID,
 		},
@@ -78,19 +62,15 @@ func (s *StepCaptureImage) captureImageFromVM(ctx context.Context) error {
 	}
 
 	f, err := s.client.DtlCustomImageClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.ManagedImageName, *customImage)
+	if err == nil {
+		err = f.WaitForCompletionRef(ctx, s.client.DtlCustomImageClient.Client)
+	}
 	if err != nil {
+		s.say("Error from Capture Image")
 		s.say(s.client.LastError.Error())
 	}
-	return f.WaitForCompletionRef(ctx, s.client.DtlCustomImageClient.Client)
-}
 
-func (s *StepCaptureImage) captureImage(ctx context.Context, resourceGroupName string, computeName string, parameters *compute.VirtualMachineCaptureParameters) error {
-	f, err := s.client.VirtualMachinesClient.Capture(ctx, resourceGroupName, computeName, *parameters)
-
-	if err != nil {
-		s.say(s.client.LastError.Error())
-	}
-	return f.WaitForCompletionRef(ctx, s.client.VirtualMachinesClient.Client)
+	return err
 }
 
 func (s *StepCaptureImage) Run(ctx context.Context, state multistep.StateBag) multistep.StepAction {
@@ -111,23 +91,11 @@ func (s *StepCaptureImage) Run(ctx context.Context, state multistep.StateBag) mu
 	s.say(fmt.Sprintf(" -> Compute Name              : '%s'", computeName))
 	s.say(fmt.Sprintf(" -> Compute Location          : '%s'", location))
 
-	err := s.generalizeVM(resourceGroupName, computeName)
+	err := s.captureImageFromVM(ctx)
 
-	err = s.captureImageFromVM(ctx)
-
-	// if err == nil {
-	// 	if isManagedImage {
-	// 		s.say(fmt.Sprintf(" -> Image ResourceGroupName   : '%s'", targetManagedImageResourceGroupName))
-	// 		s.say(fmt.Sprintf(" -> Image Name                : '%s'", targetManagedImageName))
-	// 		s.say(fmt.Sprintf(" -> Image Location            : '%s'", targetManagedImageLocation))
-	// 		err = s.captureManagedImage(ctx, targetManagedImageResourceGroupName, targetManagedImageName, imageParameters)
-	// 	} else {
-	// 		err = s.captureVhd(ctx, resourceGroupName, computeName, vmCaptureParameters)
-	// 	}
-	// }
 	if err != nil {
-		state.Put(constants.Error, err)
 		s.error(err)
+		state.Put(constants.Error, err)
 
 		return multistep.ActionHalt
 	}

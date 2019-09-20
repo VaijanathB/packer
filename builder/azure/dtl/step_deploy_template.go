@@ -48,6 +48,7 @@ func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupNa
 
 	if err != nil {
 		s.say(s.client.LastError.Error())
+		return err
 	}
 
 	vmList := vmlistPage.Values()
@@ -63,27 +64,29 @@ func (s *StepDeployTemplate) deployTemplate(ctx context.Context, resourceGroupNa
 		return err
 	}
 
-	f, err := s.client.DtlVirtualMachineClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, *labMachine)
+	//f, err := s.client.DtlEnvironmentsClient.CreateOrUpdateVM(ctx, s.config.tmpResourceGroupName, s.config.LabName, *labMachine)
+	f, err := s.client.DtlLabsClient.CreateEnvironment(ctx, s.config.tmpResourceGroupName, s.config.LabName, *labMachine)
 
 	if err == nil {
-		err = f.WaitForCompletionRef(ctx, s.client.DtlVirtualMachineClient.Client)
+		err = f.WaitForCompletionRef(ctx, s.client.DtlLabsClient.Client)
 	}
 	if err != nil {
 		s.say(s.client.LastError.Error())
 		return err
 	}
+	expand := "Properties($expand=ComputeVm,Artifacts,NetworkInterface)"
 
-	vm, err := s.client.DtlVirtualMachineClient.Get(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, "")
+	vm, err := s.client.DtlVirtualMachineClient.Get(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.tmpComputeName, expand)
 	if err != nil {
 		s.say(s.client.LastError.Error())
 	}
-
 	xs := strings.Split(*vm.LabVirtualMachineProperties.ComputeID, "/")
 	s.config.VMCreationResourceGroup = xs[4]
 
+	state.Put(constants.SSHHost, *vm.Fqdn)
+
 	// Resuing the Resource group name from common constants as all steps depend on it.
 	state.Put(constants.ArmResourceGroupName, s.config.VMCreationResourceGroup)
-	state.Put(constants.ArmIsExistingResourceGroup, s.config.IsExistingResourceGroup)
 
 	s.say(fmt.Sprintf(" -> VM ResourceGroupName : '%s'", s.config.VMCreationResourceGroup))
 
