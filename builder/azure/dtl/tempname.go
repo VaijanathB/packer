@@ -26,10 +26,10 @@ func NewTempName(c *Config) *TempName {
 	suffix := random.AlphaNumLower(10)
 
 	if c.VMName != "" {
-		suffix = c.VMName // random.AlphaNumLower(10)
+		suffix = c.VMName
 	}
 
-	tempName.ComputeName = suffix //fmt.Sprintf("pkrvm%s", suffix)
+	tempName.ComputeName = suffix
 	tempName.DeploymentName = fmt.Sprintf("pkrdp%s", suffix)
 	tempName.KeyVaultName = fmt.Sprintf("pkrkv%s", suffix)
 	tempName.OSDiskName = fmt.Sprintf("pkros%s", suffix)
