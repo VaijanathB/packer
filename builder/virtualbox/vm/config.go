@@ -15,19 +15,17 @@ import (
 
 // Config is the configuration structure for the builder.
 type Config struct {
-	common.PackerConfig             `mapstructure:",squash"`
-	common.HTTPConfig               `mapstructure:",squash"`
-	common.FloppyConfig             `mapstructure:",squash"`
-	bootcommand.BootConfig          `mapstructure:",squash"`
-	vboxcommon.ExportConfig         `mapstructure:",squash"`
-	vboxcommon.ExportOpts           `mapstructure:",squash"`
-	vboxcommon.OutputConfig         `mapstructure:",squash"`
-	vboxcommon.RunConfig            `mapstructure:",squash"`
-	vboxcommon.SSHConfig            `mapstructure:",squash"`
-	vboxcommon.ShutdownConfig       `mapstructure:",squash"`
-	vboxcommon.VBoxManageConfig     `mapstructure:",squash"`
-	vboxcommon.VBoxManagePostConfig `mapstructure:",squash"`
-	vboxcommon.VBoxVersionConfig    `mapstructure:",squash"`
+	common.PackerConfig          `mapstructure:",squash"`
+	common.HTTPConfig            `mapstructure:",squash"`
+	common.FloppyConfig          `mapstructure:",squash"`
+	bootcommand.BootConfig       `mapstructure:",squash"`
+	vboxcommon.ExportConfig      `mapstructure:",squash"`
+	vboxcommon.OutputConfig      `mapstructure:",squash"`
+	vboxcommon.RunConfig         `mapstructure:",squash"`
+	vboxcommon.SSHConfig         `mapstructure:",squash"`
+	vboxcommon.ShutdownConfig    `mapstructure:",squash"`
+	vboxcommon.VBoxManageConfig  `mapstructure:",squash"`
+	vboxcommon.VBoxVersionConfig `mapstructure:",squash"`
 
 	GuestAdditionsMode   string `mapstructure:"guest_additions_mode"`
 	GuestAdditionsPath   string `mapstructure:"guest_additions_path"`
@@ -78,7 +76,6 @@ func NewConfig(raws ...interface{}) (*Config, []string, error) {
 	// Prepare the errors
 	var errs *packer.MultiError
 	errs = packer.MultiErrorAppend(errs, c.ExportConfig.Prepare(&c.ctx)...)
-	errs = packer.MultiErrorAppend(errs, c.ExportOpts.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.FloppyConfig.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.HTTPConfig.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.OutputConfig.Prepare(&c.ctx, &c.PackerConfig)...)
@@ -86,7 +83,6 @@ func NewConfig(raws ...interface{}) (*Config, []string, error) {
 	errs = packer.MultiErrorAppend(errs, c.ShutdownConfig.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.SSHConfig.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.VBoxManageConfig.Prepare(&c.ctx)...)
-	errs = packer.MultiErrorAppend(errs, c.VBoxManagePostConfig.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.VBoxVersionConfig.Prepare(&c.ctx)...)
 	errs = packer.MultiErrorAppend(errs, c.BootConfig.Prepare(&c.ctx)...)
 
@@ -95,11 +91,6 @@ func NewConfig(raws ...interface{}) (*Config, []string, error) {
 	if c.VMName == "" {
 		errs = packer.MultiErrorAppend(errs,
 			fmt.Errorf("vm_name is required"))
-	}
-
-	if c.TargetSnapshot == "" {
-		errs = packer.MultiErrorAppend(errs,
-			fmt.Errorf("target_snapshot is required"))
 	}
 
 	validMode := false
@@ -127,11 +118,18 @@ func NewConfig(raws ...interface{}) (*Config, []string, error) {
 
 	// Warnings
 	var warnings []string
+	if c.TargetSnapshot == "" && c.SkipExport {
+		warnings = append(warnings,
+			"No target snapshot is specified (target_snapshot empty) and no export will be created (skip_export=true).\n"+
+				"You might lose all changes applied by this run, the next time you execute packer.")
+	}
+
 	if c.ShutdownCommand == "" {
 		warnings = append(warnings,
 			"A shutdown_command was not specified. Without a shutdown command, Packer\n"+
 				"will forcibly halt the virtual machine, which may result in data loss.")
 	}
+
 	driver, err := vboxcommon.NewDriver()
 	if err != nil {
 		errs = packer.MultiErrorAppend(errs, fmt.Errorf("Failed creating VirtualBox driver: %s", err))

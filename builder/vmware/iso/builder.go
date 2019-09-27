@@ -86,15 +86,20 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		&common.StepCreateFloppy{
 			Files:       b.config.FloppyConfig.FloppyFiles,
 			Directories: b.config.FloppyConfig.FloppyDirectories,
+			Label:       b.config.FloppyConfig.FloppyLabel,
 		},
-		&stepRemoteUpload{
-			Key:       "floppy_path",
-			Message:   "Uploading Floppy to remote machine...",
-			DoCleanup: true,
+		&vmwcommon.StepRemoteUpload{
+			Key:          "floppy_path",
+			Message:      "Uploading Floppy to remote machine...",
+			DoCleanup:    true,
+			Checksum:     "",
+			ChecksumType: "none",
 		},
-		&stepRemoteUpload{
-			Key:     "iso_path",
-			Message: "Uploading ISO to remote machine...",
+		&vmwcommon.StepRemoteUpload{
+			Key:          "iso_path",
+			Message:      "Uploading ISO to remote machine...",
+			Checksum:     b.config.ISOChecksum,
+			ChecksumType: b.config.ISOChecksumType,
 		},
 		&stepCreateDisk{},
 		&stepCreateVMX{},

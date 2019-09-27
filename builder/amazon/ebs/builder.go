@@ -1,3 +1,5 @@
+//go:generate struct-markdown
+
 // The amazonebs package contains a packer.Builder implementation that
 // builds AMIs for Amazon EC2.
 //
@@ -26,9 +28,29 @@ type Config struct {
 	common.PackerConfig    `mapstructure:",squash"`
 	awscommon.AccessConfig `mapstructure:",squash"`
 	awscommon.AMIConfig    `mapstructure:",squash"`
-	awscommon.BlockDevices `mapstructure:",squash"`
 	awscommon.RunConfig    `mapstructure:",squash"`
-	VolumeRunTags          awscommon.TagMap `mapstructure:"run_volume_tags"`
+	// Add one or more block device mappings to the AMI. These will be attached
+	// when booting a new instance from your AMI. To add a block device during
+	// the Packer build see `launch_block_device_mappings` below. Your options
+	// here may vary depending on the type of VM you use. See the
+	// [BlockDevices](#block-devices-configuration) documentation for fields.
+	AMIMappings awscommon.BlockDevices `mapstructure:"ami_block_device_mappings" required:"false"`
+	// Add one or more block devices before the Packer build starts. If you add
+	// instance store volumes or EBS volumes in addition to the root device
+	// volume, the created AMI will contain block device mapping information
+	// for those volumes. Amazon creates snapshots of the source instance's
+	// root volume and any other EBS volumes described here. When you launch an
+	// instance from this new AMI, the instance automatically launches with
+	// these additional volumes, and will restore them from snapshots taken
+	// from the source instance. See the
+	// [BlockDevices](#block-devices-configuration) documentation for fields.
+	LaunchMappings awscommon.BlockDevices `mapstructure:"launch_block_device_mappings" required:"false"`
+	// Tags to apply to the volumes that are *launched* to create the AMI.
+	// These tags are *not* applied to the resulting AMI unless they're
+	// duplicated in `tags`. This is a [template
+	// engine](/docs/templates/engine.html), see [Build template
+	// data](#build-template-data) for more information.
+	VolumeRunTags awscommon.TagMap `mapstructure:"run_volume_tags"`
 
 	ctx interpolate.Context
 }
@@ -69,10 +91,11 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 	errs = packer.MultiErrorAppend(errs, b.config.AccessConfig.Prepare(&b.config.ctx)...)
 	errs = packer.MultiErrorAppend(errs,
 		b.config.AMIConfig.Prepare(&b.config.AccessConfig, &b.config.ctx)...)
-	errs = packer.MultiErrorAppend(errs, b.config.BlockDevices.Prepare(&b.config.ctx)...)
+	errs = packer.MultiErrorAppend(errs, b.config.AMIMappings.Prepare(&b.config.ctx)...)
+	errs = packer.MultiErrorAppend(errs, b.config.LaunchMappings.Prepare(&b.config.ctx)...)
 	errs = packer.MultiErrorAppend(errs, b.config.RunConfig.Prepare(&b.config.ctx)...)
 
-	if b.config.IsSpotInstance() && ((b.config.AMIENASupport != nil && *b.config.AMIENASupport) || b.config.AMISriovNetSupport) {
+	if b.config.IsSpotInstance() && (b.config.AMIENASupport.True() || b.config.AMISriovNetSupport) {
 		errs = packer.MultiErrorAppend(errs,
 			fmt.Errorf("Spot instances do not support modification, which is required "+
 				"when either `ena_support` or `sriov_support` are set. Please ensure "+
@@ -119,7 +142,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	if b.config.IsSpotInstance() {
 		instanceStep = &awscommon.StepRunSpotInstance{
 			AssociatePublicIpAddress:          b.config.AssociatePublicIpAddress,
-			BlockDevices:                      b.config.BlockDevices,
+			LaunchMappings:                    b.config.LaunchMappings,
 			BlockDurationMinutes:              b.config.BlockDurationMinutes,
 			Ctx:                               b.config.ctx,
 			Comm:                              &b.config.RunConfig.Comm,
@@ -141,7 +164,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	} else {
 		instanceStep = &awscommon.StepRunSourceInstance{
 			AssociatePublicIpAddress:          b.config.AssociatePublicIpAddress,
-			BlockDevices:                      b.config.BlockDevices,
+			LaunchMappings:                    b.config.LaunchMappings,
 			Comm:                              &b.config.RunConfig.Comm,
 			Ctx:                               b.config.ctx,
 			Debug:                             b.config.PackerDebug,
@@ -195,7 +218,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			TemporarySGSourceCidrs: b.config.TemporarySGSourceCidrs,
 		},
 		&awscommon.StepCleanupVolumes{
-			BlockDevices: b.config.BlockDevices,
+			LaunchMappings: b.config.LaunchMappings,
 		},
 		instanceStep,
 		&awscommon.StepGetPassword{
@@ -208,7 +231,9 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			Config: &b.config.RunConfig.Comm,
 			Host: awscommon.SSHHost(
 				ec2conn,
-				b.config.SSHInterface),
+				b.config.SSHInterface,
+				b.config.Comm.SSHHost,
+			),
 			SSHConfig: b.config.RunConfig.Comm.SSHConfigFunc(),
 		},
 		&common.StepProvision{},

@@ -1,5 +1,7 @@
-// The ebsvolume package contains a packer.Builder implementation that
-// builds EBS volumes for Amazon EC2 using an ephemeral instance,
+//go:generate struct-markdown
+
+// The ebsvolume package contains a packer.Builder implementation that builds
+// EBS volumes for Amazon EC2 using an ephemeral instance,
 package ebsvolume
 
 import (
@@ -23,12 +25,47 @@ type Config struct {
 	awscommon.AccessConfig `mapstructure:",squash"`
 	awscommon.RunConfig    `mapstructure:",squash"`
 
-	VolumeMappings     []BlockDevice `mapstructure:"ebs_volumes"`
-	AMIENASupport      *bool         `mapstructure:"ena_support"`
-	AMISriovNetSupport bool          `mapstructure:"sriov_support"`
+	// Enable enhanced networking (ENA but not SriovNetSupport) on
+	// HVM-compatible AMIs. If set, add `ec2:ModifyInstanceAttribute` to your
+	// AWS IAM policy. Note: you must make sure enhanced networking is enabled
+	// on your instance. See [Amazon's documentation on enabling enhanced
+	// networking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking.html#enabling_enhanced_networking).
+	AMIENASupport config.Trilean `mapstructure:"ena_support" required:"false"`
+	// Enable enhanced networking (SriovNetSupport but not ENA) on
+	// HVM-compatible AMIs. If true, add `ec2:ModifyInstanceAttribute` to your
+	// AWS IAM policy. Note: you must make sure enhanced networking is enabled
+	// on your instance. See [Amazon's documentation on enabling enhanced
+	// networking](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/enhanced-networking.html#enabling_enhanced_networking).
+	// Default `false`.
+	AMISriovNetSupport bool `mapstructure:"sriov_support" required:"false"`
 
-	launchBlockDevices awscommon.BlockDevices
-	ctx                interpolate.Context
+	// Add the block device mappings to the AMI. If you add instance store
+	// volumes or EBS volumes in addition to the root device volume, the
+	// created AMI will contain block device mapping information for those
+	// volumes. Amazon creates snapshots of the source instance's root volume
+	// and any other EBS volumes described here. When you launch an instance
+	// from this new AMI, the instance automatically launches with these
+	// additional volumes, and will restore them from snapshots taken from the
+	// source instance. See the [BlockDevices](#block-devices-configuration)
+	// documentation for fields.
+	VolumeMappings BlockDevices `mapstructure:"ebs_volumes" required:"false"`
+	// Tags to apply to the volumes of the instance that is *launched* to
+	// create EBS Volumes. These tags will *not* appear in the tags of the
+	// resulting EBS volumes unless they're duplicated under `tags` in the
+	// `ebs_volumes` setting. This is a [template
+	// engine](/docs/templates/engine.html), see [Build template
+	// data](#build-template-data) for more information.
+	//
+	//  Note: The tags specified here will be *temporarily* applied to volumes
+	// specified in `ebs_volumes` - but only while the instance is being
+	// created. Packer will replace all tags on the volume with the tags
+	// configured in the `ebs_volumes` section as soon as the instance is
+	// reported as 'ready'.
+	VolumeRunTags awscommon.TagMap `mapstructure:"run_volume_tags"`
+
+	launchBlockDevices BlockDevices
+
+	ctx interpolate.Context
 }
 
 type Builder struct {
@@ -70,12 +107,12 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 		}
 	}
 
-	b.config.launchBlockDevices, err = commonBlockDevices(b.config.VolumeMappings, &b.config.ctx)
+	b.config.launchBlockDevices = b.config.VolumeMappings
 	if err != nil {
 		errs = packer.MultiErrorAppend(errs, err)
 	}
 
-	if b.config.IsSpotInstance() && ((b.config.AMIENASupport != nil && *b.config.AMIENASupport) || b.config.AMISriovNetSupport) {
+	if b.config.IsSpotInstance() && ((b.config.AMIENASupport.True()) || b.config.AMISriovNetSupport) {
 		errs = packer.MultiErrorAppend(errs,
 			fmt.Errorf("Spot instances do not support modification, which is required "+
 				"when either `ena_support` or `sriov_support` are set. Please ensure "+
@@ -118,10 +155,10 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	if b.config.IsSpotInstance() {
 		instanceStep = &awscommon.StepRunSpotInstance{
 			AssociatePublicIpAddress:          b.config.AssociatePublicIpAddress,
-			BlockDevices:                      b.config.launchBlockDevices,
+			LaunchMappings:                    b.config.launchBlockDevices,
 			BlockDurationMinutes:              b.config.BlockDurationMinutes,
-			Ctx:                               b.config.ctx,
 			Comm:                              &b.config.RunConfig.Comm,
+			Ctx:                               b.config.ctx,
 			Debug:                             b.config.PackerDebug,
 			EbsOptimized:                      b.config.EbsOptimized,
 			ExpectedRootDevice:                "ebs",
@@ -129,17 +166,18 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			InstanceInitiatedShutdownBehavior: b.config.InstanceInitiatedShutdownBehavior,
 			InstanceType:                      b.config.InstanceType,
 			SourceAMI:                         b.config.SourceAmi,
-			SpotPrice:                         b.config.SpotPrice,
 			SpotInstanceTypes:                 b.config.SpotInstanceTypes,
+			SpotPrice:                         b.config.SpotPrice,
 			SpotTags:                          b.config.SpotTags,
 			Tags:                              b.config.RunTags,
 			UserData:                          b.config.UserData,
 			UserDataFile:                      b.config.UserDataFile,
+			VolumeTags:                        b.config.VolumeRunTags,
 		}
 	} else {
 		instanceStep = &awscommon.StepRunSourceInstance{
 			AssociatePublicIpAddress:          b.config.AssociatePublicIpAddress,
-			BlockDevices:                      b.config.launchBlockDevices,
+			LaunchMappings:                    b.config.launchBlockDevices,
 			Comm:                              &b.config.RunConfig.Comm,
 			Ctx:                               b.config.ctx,
 			Debug:                             b.config.PackerDebug,
@@ -154,6 +192,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			Tags:                              b.config.RunTags,
 			UserData:                          b.config.UserData,
 			UserDataFile:                      b.config.UserDataFile,
+			VolumeTags:                        b.config.VolumeRunTags,
 		}
 	}
 
@@ -200,7 +239,9 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			Config: &b.config.RunConfig.Comm,
 			Host: awscommon.SSHHost(
 				ec2conn,
-				b.config.SSHInterface),
+				b.config.SSHInterface,
+				b.config.Comm.SSHHost,
+			),
 			SSHConfig: b.config.RunConfig.Comm.SSHConfigFunc(),
 		},
 		&common.StepProvision{},
