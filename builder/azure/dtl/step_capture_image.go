@@ -48,17 +48,31 @@ func (s *StepCaptureImage) captureImageFromVM(ctx context.Context) error {
 		s.config.LabName,
 		s.config.tmpComputeName)
 
-	customImageProperties := &dtl.CustomImageProperties{
-		VM: &dtl.CustomImagePropertiesFromVM{
-			LinuxOsInfo: &dtl.LinuxOsInfo{
-				LinuxOsState: dtl.DeprovisionRequested,
+	customImageProperties := dtl.CustomImageProperties{}
+
+	if s.config.OSType == constants.Target_Linux {
+		customImageProperties = dtl.CustomImageProperties{
+			VM: &dtl.CustomImagePropertiesFromVM{
+				LinuxOsInfo: &dtl.LinuxOsInfo{
+					LinuxOsState: dtl.DeprovisionRequested,
+				},
+				SourceVMID: &imageID,
 			},
-			SourceVMID: &imageID,
-		},
+		}
+	} else if s.config.OSType == constants.Target_Windows {
+		customImageProperties = dtl.CustomImageProperties{
+			VM: &dtl.CustomImagePropertiesFromVM{
+				WindowsOsInfo: &dtl.WindowsOsInfo{
+					WindowsOsState: dtl.SysprepRequested,
+				},
+				SourceVMID: &imageID,
+			},
+		}
 	}
+
 	customImage := &dtl.CustomImage{
 		Name:                  &s.config.ManagedImageName,
-		CustomImageProperties: customImageProperties,
+		CustomImageProperties: &customImageProperties,
 	}
 
 	f, err := s.client.DtlCustomImageClient.CreateOrUpdate(ctx, s.config.tmpResourceGroupName, s.config.LabName, s.config.ManagedImageName, *customImage)
