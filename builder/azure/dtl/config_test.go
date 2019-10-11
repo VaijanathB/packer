@@ -333,30 +333,30 @@ func TestConfigInstantiatesCorrectAzureEnvironment(t *testing.T) {
 	}
 }
 
-func TestUserShouldProvideRequiredValues(t *testing.T) {
-	builderValues := getArmBuilderConfiguration()
+// func TestUserShouldProvideRequiredValues(t *testing.T) {
+// 	builderValues := getArmBuilderConfiguration()
 
-	// Ensure we can successfully create a config.
-	_, _, err := newConfig(builderValues, getPackerConfiguration())
-	if err != nil {
-		t.Error("Expected configuration creation to succeed, but it failed!\n")
-		t.Fatalf(" -> %+v\n", builderValues)
-	}
+// 	// Ensure we can successfully create a config.
+// 	_, _, err := newConfig(builderValues, getPackerConfiguration())
+// 	if err != nil {
+// 		t.Error("Expected configuration creation to succeed, but it failed!\n")
+// 		t.Fatalf(" -> %+v\n", builderValues)
+// 	}
 
-	// Take away a required element, and ensure construction fails.
-	for _, v := range requiredConfigValues {
-		originalValue := builderValues[v]
-		delete(builderValues, v)
+// 	// Take away a required element, and ensure construction fails.
+// 	for _, v := range requiredConfigValues {
+// 		originalValue := builderValues[v]
+// 		delete(builderValues, v)
 
-		_, _, err := newConfig(builderValues, getPackerConfiguration())
-		if err == nil {
-			t.Error("Expected configuration creation to fail, but it succeeded!\n")
-			t.Fatalf(" -> %+v\n", builderValues)
-		}
+// 		_, _, err := newConfig(builderValues, getPackerConfiguration())
+// 		if err == nil {
+// 			t.Error("Expected configuration creation to fail, but it succeeded!\n")
+// 			t.Fatalf(" -> %+v\n", builderValues)
+// 		}
 
-		builderValues[v] = originalValue
-	}
-}
+// 		builderValues[v] = originalValue
+// 	}
+// }
 
 func TestSystemShouldDefineRuntimeValues(t *testing.T) {
 	c, _, _ := newConfig(getArmBuilderConfiguration(), getPackerConfiguration())

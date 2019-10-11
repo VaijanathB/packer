@@ -37,7 +37,7 @@ func newBool(val bool) *bool {
 	}
 }
 
-func getCustomImageId (config *Config) *string {
+func getCustomImageId(config *Config) *string {
 	if config.CustomManagedImageName != "" && config.CustomManagedImageResourceGroupName != "" {
 		customManagedImageID := fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/images/%s",
 			config.SubscriptionID,
@@ -49,7 +49,7 @@ func getCustomImageId (config *Config) *string {
 }
 
 func GetVirtualMachineDeployment(config *Config) (*dtl.LabVirtualMachineCreationParameter, error) {
-	
+
 	galleryImageRef := dtl.GalleryImageReference{
 		Offer:     &config.ImageOffer,
 		Publisher: &config.ImagePublisher,
