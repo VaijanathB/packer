@@ -1,7 +1,6 @@
 package dtl
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -131,7 +130,7 @@ func byConcatDecorators(decorators ...autorest.RespondDecorator) autorest.Respon
 	}
 }
 
-func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string,
+func NewAzureClient(subscriptionID, resourceGroupName string,
 	cloud *azure.Environment, SharedGalleryTimeout time.Duration,
 	servicePrincipalToken *adal.ServicePrincipalToken) (*AzureClient, error) {
 
@@ -182,27 +181,6 @@ func NewAzureClient(subscriptionID, resourceGroupName, storageAccountName string
 	azureClient.GalleryImagesClient.RequestInspector = withInspection(maxlen)
 	azureClient.GalleryImagesClient.ResponseInspector = byConcatDecorators(byInspecting(maxlen), errorCapture(azureClient))
 	azureClient.GalleryImagesClient.UserAgent = fmt.Sprintf("%s %s", useragent.String(), azureClient.GalleryImagesClient.UserAgent)
-
-	// If this is a managed disk build, this should be ignored.
-	if resourceGroupName != "" && storageAccountName != "" {
-		accountKeys, err := azureClient.AccountsClient.ListKeys(context.TODO(), resourceGroupName, storageAccountName)
-		if err != nil {
-			return nil, err
-		}
-
-		storageClient, err := storage.NewClient(
-			storageAccountName,
-			*(*accountKeys.Keys)[0].Value,
-			cloud.StorageEndpointSuffix,
-			storage.DefaultAPIVersion,
-			true /*useHttps*/)
-
-		if err != nil {
-			return nil, err
-		}
-
-		azureClient.BlobStorageClient = storageClient.GetBlobService()
-	}
 
 	return azureClient, nil
 }

@@ -20,8 +20,6 @@ var requiredConfigValues = []string{
 	"image_sku",
 	"location",
 	"os_type",
-	"storage_account",
-	"resource_group_name",
 	"subscription_id",
 }
 
@@ -120,8 +118,6 @@ func TestConfigShouldNotDefaultImageVersionIfCustomImage(t *testing.T) {
 		"capture_container_name": "ignore",
 		"location":               "ignore",
 		"image_url":              "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                constants.Target_Linux,
 		"communicator":           "none",
@@ -139,8 +135,6 @@ func TestConfigShouldNormalizeOSTypeCase(t *testing.T) {
 		"capture_container_name": "ignore",
 		"location":               "ignore",
 		"image_url":              "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 	}
@@ -180,8 +174,6 @@ func TestConfigShouldRejectCustomImageAndMarketPlace(t *testing.T) {
 		"capture_container_name": "ignore",
 		"location":               "ignore",
 		"image_url":              "ignore",
-		"resource_group_name":    "ignore",
-		"storage_account":        "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                constants.Target_Linux,
 		"communicator":           "none",
@@ -198,32 +190,6 @@ func TestConfigShouldRejectCustomImageAndMarketPlace(t *testing.T) {
 	}
 }
 
-func TestConfigVirtualNetworkNameIsOptional(t *testing.T) {
-	config := map[string]string{
-		"capture_name_prefix":    "ignore",
-		"capture_container_name": "ignore",
-		"location":               "ignore",
-		"image_url":              "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
-		"subscription_id":        "ignore",
-		"os_type":                constants.Target_Linux,
-		"communicator":           "none",
-		"virtual_network_name":   "MyVirtualNetwork",
-	}
-
-	c, _, _ := newConfig(config, getPackerConfiguration())
-	if c.VirtualNetworkName != "MyVirtualNetwork" {
-		t.Errorf("Expected Config to set virtual_network_name to MyVirtualNetwork, but got %q", c.VirtualNetworkName)
-	}
-	if c.VirtualNetworkResourceGroupName != "" {
-		t.Errorf("Expected Config to leave virtual_network_resource_group_name to '', but got %q", c.VirtualNetworkResourceGroupName)
-	}
-	if c.VirtualNetworkSubnetName != "" {
-		t.Errorf("Expected Config to leave virtual_network_subnet_name to '', but got %q", c.VirtualNetworkSubnetName)
-	}
-}
-
 // The user can pass the value virtual_network_resource_group_name to avoid the lookup of
 // a virtual network's resource group, or to help with disambiguation.  The value should
 // only be set if virtual_network_name was set.
@@ -233,8 +199,6 @@ func TestConfigVirtualNetworkResourceGroupNameMustBeSetWithVirtualNetworkName(t 
 		"capture_container_name":              "ignore",
 		"location":                            "ignore",
 		"image_url":                           "ignore",
-		"storage_account":                     "ignore",
-		"resource_group_name":                 "ignore",
 		"subscription_id":                     "ignore",
 		"os_type":                             constants.Target_Linux,
 		"communicator":                        "none",
@@ -256,8 +220,6 @@ func TestConfigVirtualNetworkSubnetNameMustBeSetWithVirtualNetworkName(t *testin
 		"capture_container_name":      "ignore",
 		"location":                    "ignore",
 		"image_url":                   "ignore",
-		"storage_account":             "ignore",
-		"resource_group_name":         "ignore",
 		"subscription_id":             "ignore",
 		"os_type":                     constants.Target_Linux,
 		"communicator":                "none",
@@ -290,8 +252,6 @@ func TestConfigInstantiatesCorrectAzureEnvironment(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                constants.Target_Linux,
 		"communicator":           "none",
@@ -332,31 +292,6 @@ func TestConfigInstantiatesCorrectAzureEnvironment(t *testing.T) {
 		}
 	}
 }
-
-// func TestUserShouldProvideRequiredValues(t *testing.T) {
-// 	builderValues := getArmBuilderConfiguration()
-
-// 	// Ensure we can successfully create a config.
-// 	_, _, err := newConfig(builderValues, getPackerConfiguration())
-// 	if err != nil {
-// 		t.Error("Expected configuration creation to succeed, but it failed!\n")
-// 		t.Fatalf(" -> %+v\n", builderValues)
-// 	}
-
-// 	// Take away a required element, and ensure construction fails.
-// 	for _, v := range requiredConfigValues {
-// 		originalValue := builderValues[v]
-// 		delete(builderValues, v)
-
-// 		_, _, err := newConfig(builderValues, getPackerConfiguration())
-// 		if err == nil {
-// 			t.Error("Expected configuration creation to fail, but it succeeded!\n")
-// 			t.Fatalf(" -> %+v\n", builderValues)
-// 		}
-
-// 		builderValues[v] = originalValue
-// 	}
-// }
 
 func TestSystemShouldDefineRuntimeValues(t *testing.T) {
 	c, _, _ := newConfig(getArmBuilderConfiguration(), getPackerConfiguration())
@@ -442,8 +377,6 @@ func TestUserDeviceLoginIsEnabledForLinux(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                constants.Target_Linux,
 		"communicator":           "none",
@@ -462,8 +395,6 @@ func TestConfigShouldRejectMalformedCaptureNamePrefix(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 		// Does not matter for this test case, just pick one.
@@ -513,8 +444,6 @@ func TestConfigShouldRejectMalformedCaptureContainerName(t *testing.T) {
 		"image_publisher":     "ignore",
 		"image_sku":           "ignore",
 		"location":            "ignore",
-		"storage_account":     "ignore",
-		"resource_group_name": "ignore",
 		"subscription_id":     "ignore",
 		"communicator":        "none",
 		// Does not matter for this test case, just pick one.
@@ -663,8 +592,6 @@ func TestConfigShouldAcceptTags(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 		// Does not matter for this test case, just pick one.
@@ -716,8 +643,6 @@ func TestConfigShouldRejectTagsInExcessOf15AcceptTags(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 		// Does not matter for this test case, just pick one.
@@ -748,8 +673,6 @@ func TestConfigShouldRejectExcessiveTagNameLength(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 		// Does not matter for this test case, just pick one.
@@ -779,8 +702,6 @@ func TestConfigShouldRejectExcessiveTagValueLength(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 		// Does not matter for this test case, just pick one.
@@ -798,7 +719,6 @@ func TestConfigZoneResilientShouldDefaultToFalse(t *testing.T) {
 	config := map[string]interface{}{
 		"managed_image_name":                "ignore",
 		"managed_image_resource_group_name": "ignore",
-		"build_resource_group_name":         "ignore",
 		"image_publisher":                   "igore",
 		"image_offer":                       "ignore",
 		"image_sku":                         "ignore",
@@ -820,7 +740,6 @@ func TestConfigZoneResilientSetFromConfig(t *testing.T) {
 	config := map[string]interface{}{
 		"managed_image_name":                "ignore",
 		"managed_image_resource_group_name": "ignore",
-		"build_resource_group_name":         "ignore",
 		"image_publisher":                   "igore",
 		"image_offer":                       "ignore",
 		"image_sku":                         "ignore",
@@ -847,8 +766,6 @@ func TestConfigShouldRejectMissingCustomDataFile(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 		// Does not matter for this test case, just pick one.
@@ -1215,8 +1132,6 @@ func TestConfigShouldRejectTempAndBuildResourceGroupName(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"communicator":           "none",
 
@@ -1228,60 +1143,6 @@ func TestConfigShouldRejectTempAndBuildResourceGroupName(t *testing.T) {
 	_, _, err := newConfig(config, getPackerConfiguration())
 	if err == nil {
 		t.Fatal("expected config to reject the use of both temp_resource_group_name and build_resource_group_name")
-	}
-}
-
-func TestConfigShouldRejectInvalidResourceGroupNames(t *testing.T) {
-	config := map[string]interface{}{
-		"capture_name_prefix":    "ignore",
-		"capture_container_name": "ignore",
-		"image_offer":            "ignore",
-		"image_publisher":        "ignore",
-		"image_sku":              "ignore",
-		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
-		"subscription_id":        "ignore",
-		"communicator":           "none",
-		"os_type":                "linux",
-	}
-
-	tests := []struct {
-		name string
-		ok   bool
-	}{
-		// The Good
-		{"packer-Resource-Group-jt2j3fc", true},
-		{"My", true},
-		{"My-(with-parens)-Resource-Group", true},
-
-		// The Bad
-		{"My Resource Group", false},
-		{"My-Resource-Group-", false},
-		{"My.Resource.Group.", false},
-
-		// The Ugly
-		{"My!@#!@#%$%yM", false},
-		{"   ", false},
-		{"My10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", false},
-	}
-
-	settings := []string{"temp_resource_group_name", "build_resource_group_name"}
-
-	for _, x := range settings {
-		for _, y := range tests {
-			config[x] = y.name
-
-			_, _, err := newConfig(config, getPackerConfiguration())
-			if !y.ok && err == nil {
-				t.Errorf("expected config to reject %q for setting %q", y.name, x)
-			} else if y.ok && err != nil {
-				t.Errorf("expected config to accept %q for setting %q", y.name, x)
-			}
-		}
-
-		delete(config, "location") // not valid for build_resource_group_name
-		delete(config, x)
 	}
 }
 
@@ -1378,8 +1239,6 @@ func TestConfigAdditionalDiskOverrideDefault(t *testing.T) {
 		"capture_container_name": "ignore",
 		"location":               "ignore",
 		"image_url":              "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                constants.Target_Linux,
 		"communicator":           "none",
@@ -1419,8 +1278,6 @@ func TestPlanInfoConfiguration(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                "linux",
 		"communicator":           "none",
@@ -1467,8 +1324,6 @@ func TestPlanInfoPromotionCode(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                "linux",
 		"communicator":           "none",
@@ -1515,8 +1370,6 @@ func TestPlanInfoTooManyTagsErrors(t *testing.T) {
 		"image_publisher":        "ignore",
 		"image_sku":              "ignore",
 		"location":               "ignore",
-		"storage_account":        "ignore",
-		"resource_group_name":    "ignore",
 		"subscription_id":        "ignore",
 		"os_type":                "linux",
 		"communicator":           "none",
@@ -1532,43 +1385,6 @@ func TestPlanInfoTooManyTagsErrors(t *testing.T) {
 	_, _, err := newConfig(config, getPackerConfiguration())
 	if err == nil {
 		t.Fatal("expected config to reject configuration due to excess tags")
-	}
-}
-
-// The Azure builder creates temporary resources, but the user has some control over
-// these values. This test asserts those values are controllable by the user.
-func TestConfigShouldAllowTempNameOverrides(t *testing.T) {
-	config := map[string]interface{}{
-		"image_offer":                       "ignore",
-		"image_publisher":                   "ignore",
-		"image_sku":                         "ignore",
-		"location":                          "ignore",
-		"subscription_id":                   "ignore",
-		"communicator":                      "none",
-		"os_type":                           "linux",
-		"managed_image_name":                "ignore",
-		"managed_image_resource_group_name": "ignore",
-		"temp_resource_group_name":          "myTempResourceGroupName",
-		"temp_compute_name":                 "myTempComputeName",
-	}
-
-	c, _, err := newConfig(config, getPackerConfiguration())
-	if err != nil {
-		t.Errorf("newConfig failed with %q", err)
-	}
-
-	if c.TempResourceGroupName != "myTempResourceGroupName" {
-		t.Errorf("expected TempResourceGroupName to be %q, but got %q", "myTempResourceGroupName", c.TempResourceGroupName)
-	}
-	if c.tmpResourceGroupName != "myTempResourceGroupName" {
-		t.Errorf("expected tmpResourceGroupName to be %q, but got %q", "myTempResourceGroupName", c.tmpResourceGroupName)
-	}
-
-	if c.TempComputeName != "myTempComputeName" {
-		t.Errorf("expected TempComputeName to be %q, but got %q", "myTempComputeName", c.TempComputeName)
-	}
-	if c.tmpComputeName != "myTempComputeName" {
-		t.Errorf("expected tmpComputeName to be %q, but got %q", "myTempComputeName", c.tmpResourceGroupName)
 	}
 }
 

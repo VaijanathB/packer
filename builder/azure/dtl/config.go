@@ -10,7 +10,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"regexp"
 	"strings"
@@ -137,20 +136,9 @@ type Config struct {
 	ManagedImageZoneResilient          bool `mapstructure:"managed_image_zone_resilient"`
 
 	// Deployment
-	AzureTags                         map[string]*string `mapstructure:"azure_tags"`
-	ResourceGroupName                 string             `mapstructure:"resource_group_name"`
-	StorageAccount                    string             `mapstructure:"storage_account"`
-	TempComputeName                   string             `mapstructure:"temp_compute_name"`
-	TempResourceGroupName             string             `mapstructure:"temp_resource_group_name"`
-	BuildResourceGroupName            string             `mapstructure:"build_resource_group_name"`
-	storageAccountBlobEndpoint        string
-	PrivateVirtualNetworkWithPublicIp bool   `mapstructure:"private_virtual_network_with_public_ip"`
-	VirtualNetworkName                string `mapstructure:"virtual_network_name"`
-	VirtualNetworkSubnetName          string `mapstructure:"virtual_network_subnet_name"`
-	VirtualNetworkResourceGroupName   string `mapstructure:"virtual_network_resource_group_name"`
-	CustomDataFile                    string `mapstructure:"custom_data_file"`
-	customData                        string
-	PlanInfo                          PlanInformation `mapstructure:"plan_info"`
+	AzureTags                  map[string]*string `mapstructure:"azure_tags"`
+	storageAccountBlobEndpoint string
+	PlanInfo                   PlanInformation `mapstructure:"plan_info"`
 
 	// OS
 	OSType       string `mapstructure:"os_type"`
@@ -212,8 +200,6 @@ func (c *Config) toVMID() string {
 	var resourceGroupName string
 	if c.tmpResourceGroupName != "" {
 		resourceGroupName = c.tmpResourceGroupName
-	} else {
-		resourceGroupName = c.BuildResourceGroupName
 	}
 	return fmt.Sprintf("/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Compute/virtualMachines/%s", c.SubscriptionID, resourceGroupName, c.tmpComputeName)
 }
@@ -331,11 +317,6 @@ func newConfig(raws ...interface{}) (*Config, []string, error) {
 		return nil, nil, err
 	}
 
-	err = setCustomData(&c)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// NOTE: if the user did not specify a communicator, then default to both
 	// SSH and WinRM.  This is for backwards compatibility because the code did
 	// not specifically force the user to set a communicator.
@@ -423,19 +404,11 @@ func setRuntimeValues(c *Config) {
 	packer.LogSecretFilter.Set(c.tmpAdminPassword)
 
 	c.tmpCertificatePassword = tempName.CertificatePassword
-	if c.TempComputeName == "" {
-		c.tmpComputeName = tempName.ComputeName
-	} else {
-		c.tmpComputeName = c.TempComputeName
-	}
+	c.tmpComputeName = tempName.ComputeName
+
 	c.tmpDeploymentName = tempName.DeploymentName
-	// Only set tmpResourceGroupName if no name has been specified
-	if c.TempResourceGroupName == "" && c.BuildResourceGroupName == "" && c.LabResourceGroupName == "" {
+	if c.LabResourceGroupName == "" {
 		c.tmpResourceGroupName = tempName.ResourceGroupName
-	} else if c.TempResourceGroupName != "" && c.BuildResourceGroupName == "" && c.LabResourceGroupName == "" {
-		c.tmpResourceGroupName = c.TempResourceGroupName
-	} else if c.LabResourceGroupName != "" {
-		c.tmpResourceGroupName = c.LabResourceGroupName
 	}
 	c.tmpNicName = tempName.NicName
 	c.tmpPublicIPAddressName = tempName.PublicIPAddressName
@@ -457,20 +430,6 @@ func setUserNamePassword(c *Config) {
 	} else {
 		c.Password = c.tmpAdminPassword
 	}
-}
-
-func setCustomData(c *Config) error {
-	if c.CustomDataFile == "" {
-		return nil
-	}
-
-	b, err := ioutil.ReadFile(c.CustomDataFile)
-	if err != nil {
-		return err
-	}
-
-	c.customData = base64.StdEncoding.EncodeToString(b)
-	return nil
 }
 
 func provideDefaultValues(c *Config) {
@@ -551,8 +510,8 @@ func assertRequiredParametersSet(c *Config, errs *packer.MultiError) {
 		}
 	}
 
-	if c.TempResourceGroupName != "" && c.BuildResourceGroupName != "" {
-		errs = packer.MultiErrorAppend(errs, fmt.Errorf("The settings temp_resource_group_name and build_resource_group_name cannot both be defined.  Please define one or neither."))
+	if c.LabResourceGroupName != "" {
+		errs = packer.MultiErrorAppend(errs, fmt.Errorf("The settings lab_resource_group_name needs to be defined."))
 	}
 
 	/////////////////////////////////////////////
@@ -625,41 +584,6 @@ func assertRequiredParametersSet(c *Config, errs *packer.MultiError) {
 		}
 	}
 
-	/////////////////////////////////////////////
-	// Deployment
-	xor := func(a, b bool) bool {
-		return (a || b) && !(a && b)
-	}
-
-	if !xor((c.StorageAccount != "" || c.ResourceGroupName != ""), (c.ManagedImageName != "" || c.ManagedImageResourceGroupName != "")) {
-		errs = packer.MultiErrorAppend(errs, fmt.Errorf("Specify either a VHD (storage_account and resource_group_name) or Managed Image (managed_image_resource_group_name and managed_image_name) output"))
-	}
-
-	// if !xor(c.Location != "", c.BuildResourceGroupName != "") {
-	// 	errs = packer.MultiErrorAppend(errs, fmt.Errorf("Specify either a location to create the resource group in or an existing build_resource_group_name, but not both."))
-	// }
-
-	if c.ManagedImageName == "" && c.ManagedImageResourceGroupName == "" {
-		if c.StorageAccount == "" {
-			errs = packer.MultiErrorAppend(errs, fmt.Errorf("A storage_account must be specified"))
-		}
-		if c.ResourceGroupName == "" {
-			errs = packer.MultiErrorAppend(errs, fmt.Errorf("A resource_group_name must be specified"))
-		}
-	}
-
-	if c.TempResourceGroupName != "" {
-		if ok, err := assertResourceGroupName(c.TempResourceGroupName, "temp_resource_group_name"); !ok {
-			errs = packer.MultiErrorAppend(errs, err)
-		}
-	}
-
-	if c.BuildResourceGroupName != "" {
-		if ok, err := assertResourceGroupName(c.BuildResourceGroupName, "build_resource_group_name"); !ok {
-			errs = packer.MultiErrorAppend(errs, err)
-		}
-	}
-
 	if c.ManagedImageResourceGroupName != "" {
 		if ok, err := assertResourceGroupName(c.ManagedImageResourceGroupName, "managed_image_resource_group_name"); !ok {
 			errs = packer.MultiErrorAppend(errs, err)
@@ -684,10 +608,10 @@ func assertRequiredParametersSet(c *Config, errs *packer.MultiError) {
 		}
 	}
 
-	if c.VirtualNetworkName == "" && c.VirtualNetworkResourceGroupName != "" {
+	if c.LabVirtualNetworkName == "" && c.LabResourceGroupName != "" {
 		errs = packer.MultiErrorAppend(errs, fmt.Errorf("If virtual_network_resource_group_name is specified, so must virtual_network_name"))
 	}
-	if c.VirtualNetworkName == "" && c.VirtualNetworkSubnetName != "" {
+	if c.LabVirtualNetworkName == "" && c.LabSubnetName != "" {
 		errs = packer.MultiErrorAppend(errs, fmt.Errorf("If virtual_network_subnet_name is specified, so must virtual_network_name"))
 	}
 

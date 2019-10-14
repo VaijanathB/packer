@@ -89,8 +89,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	ui.Message("Creating Azure Resource Manager (ARM) client ...")
 	azureClient, err := NewAzureClient(
 		b.config.SubscriptionID,
-		b.config.ResourceGroupName,
-		b.config.StorageAccount,
+		b.config.LabResourceGroupName,
 		b.config.CloudEnvironment,
 		b.config.SharedGalleryTimeout,
 		spnCloud)
@@ -133,15 +132,6 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	} else {
 		// User is not using Managed Images to build, warning message here that this path is being deprecated
 		ui.Error("Warning: You are using Azure Packer Builder to create VHDs which is being deprecated, consider using Managed Images. Learn more http://aka.ms/packermanagedimage")
-	}
-
-	if b.config.BuildResourceGroupName != "" {
-		group, err := azureClient.GroupsClient.Get(ctx, b.config.BuildResourceGroupName)
-		if err != nil {
-			return nil, fmt.Errorf("Cannot locate the existing build resource resource group %s.", b.config.BuildResourceGroupName)
-		}
-
-		b.config.Location = *group.Location
 	}
 
 	b.config.validateLocationZoneResiliency(ui.Say)
@@ -315,14 +305,6 @@ func (b *Builder) writeSSHPrivateKey(ui packer.Ui, debugKeyPath string) {
 	}
 }
 
-func (b *Builder) isPublicPrivateNetworkCommunication() bool {
-	return DefaultPrivateVirtualNetworkWithPublicIp != b.config.PrivateVirtualNetworkWithPublicIp
-}
-
-func (b *Builder) isPrivateNetworkCommunication() bool {
-	return b.config.VirtualNetworkName != ""
-}
-
 func equalLocation(location1, location2 string) bool {
 	return strings.EqualFold(canonicalizeLocation(location1), canonicalizeLocation(location2))
 }
@@ -352,17 +334,12 @@ func (b *Builder) configureStateBag(stateBag multistep.StateBag) {
 	stateBag.Put(constants.ArmKeyVaultName, b.config.tmpKeyVaultName)
 	stateBag.Put(constants.ArmNicName, b.config.tmpNicName)
 	stateBag.Put(constants.ArmPublicIPAddressName, b.config.tmpPublicIPAddressName)
-	if b.config.TempResourceGroupName != "" && b.config.BuildResourceGroupName != "" {
-		stateBag.Put(constants.ArmDoubleResourceGroupNameSet, true)
-	}
 	if b.config.tmpResourceGroupName != "" {
 		stateBag.Put(constants.ArmResourceGroupName, b.config.tmpResourceGroupName)
 		stateBag.Put(constants.ArmIsExistingResourceGroup, false)
 	} else {
-		stateBag.Put(constants.ArmResourceGroupName, b.config.BuildResourceGroupName)
 		stateBag.Put(constants.ArmIsExistingResourceGroup, true)
 	}
-	stateBag.Put(constants.ArmStorageAccountName, b.config.StorageAccount)
 
 	stateBag.Put(constants.ArmIsManagedImage, b.config.isManagedImage())
 	stateBag.Put(constants.ArmManagedImageResourceGroupName, b.config.ManagedImageResourceGroupName)

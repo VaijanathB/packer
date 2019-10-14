@@ -105,8 +105,7 @@ func (p *Provisioner) Provision(ctx context.Context, ui packer.Ui, comm packer.C
 	ui.Message("Creating Azure Resource Manager (ARM) client ...")
 	azureClient, err := dtlBuilder.NewAzureClient(
 		p.config.ClientConfig.SubscriptionID,
-		"", // resource group and Storage account required for non managed build.
-		"", // resource group and Storage account required for non managed build.
+		"",
 		p.config.ClientConfig.CloudEnvironment,
 		0,
 		spnCloud)

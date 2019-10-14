@@ -31,20 +31,20 @@ func newResourceResolver(client *AzureClient) *resourceResolver {
 }
 
 func (s *resourceResolver) Resolve(c *Config) error {
-	if s.shouldResolveResourceGroup(c) {
-		resourceGroupName, err := s.findVirtualNetworkResourceGroup(s.client, c.VirtualNetworkName)
-		if err != nil {
-			return err
-		}
+	// if s.shouldResolveResourceGroup(c) {
+	// 	resourceGroupName, err := s.findVirtualNetworkResourceGroup(s.client, c.VirtualNetworkName)
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		subnetName, err := s.findVirtualNetworkSubnet(s.client, resourceGroupName, c.VirtualNetworkName)
-		if err != nil {
-			return err
-		}
+	// 	subnetName, err := s.findVirtualNetworkSubnet(s.client, resourceGroupName, c.VirtualNetworkName)
+	// 	if err != nil {
+	// 		return err
+	// 	}
 
-		c.VirtualNetworkResourceGroupName = resourceGroupName
-		c.VirtualNetworkSubnetName = subnetName
-	}
+	// 	c.VirtualNetworkResourceGroupName = resourceGroupName
+	// 	c.VirtualNetworkSubnetName = subnetName
+	// }
 
 	if s.shouldResolveManagedImageName(c) {
 		image, err := findManagedImageByName(s.client, c.CustomManagedImageName, c.CustomManagedImageResourceGroupName)
@@ -58,9 +58,9 @@ func (s *resourceResolver) Resolve(c *Config) error {
 	return nil
 }
 
-func (s *resourceResolver) shouldResolveResourceGroup(c *Config) bool {
-	return c.VirtualNetworkName != "" && c.VirtualNetworkResourceGroupName == ""
-}
+// func (s *resourceResolver) shouldResolveResourceGroup(c *Config) bool {
+// 	return c.VirtualNetworkName != "" && c.VirtualNetworkResourceGroupName == ""
+// }
 
 func (s *resourceResolver) shouldResolveManagedImageName(c *Config) bool {
 	return c.CustomManagedImageName != ""
