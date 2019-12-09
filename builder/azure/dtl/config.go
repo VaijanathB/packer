@@ -288,11 +288,6 @@ func (c *Config) createCertificate() (string, string, error) {
 		return "", "", err
 	}
 
-	// hasher := sha1.New()
-	// if _, err := hasher.Write(bytes); err != nil {
-	// 	return "", "", err
-	// }
-	// thumbprint := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
 	certifcatePassowrd := base64.StdEncoding.EncodeToString([]byte(c.tmpCertificatePassword))
 	return base64.StdEncoding.EncodeToString(bytes), certifcatePassowrd, nil
 }
@@ -409,6 +404,8 @@ func setRuntimeValues(c *Config) {
 	c.tmpDeploymentName = tempName.DeploymentName
 	if c.LabResourceGroupName == "" {
 		c.tmpResourceGroupName = tempName.ResourceGroupName
+	} else {
+		c.tmpResourceGroupName = c.LabResourceGroupName
 	}
 	c.tmpNicName = tempName.NicName
 	c.tmpPublicIPAddressName = tempName.PublicIPAddressName
@@ -510,7 +507,7 @@ func assertRequiredParametersSet(c *Config, errs *packer.MultiError) {
 		}
 	}
 
-	if c.LabResourceGroupName != "" {
+	if c.LabResourceGroupName == "" {
 		errs = packer.MultiErrorAppend(errs, fmt.Errorf("The settings lab_resource_group_name needs to be defined."))
 	}
 

@@ -93,13 +93,6 @@ func (s *StepCaptureImage) Run(ctx context.Context, state multistep.StateBag) mu
 	var computeName = state.Get(constants.ArmComputeName).(string)
 	var location = state.Get(constants.ArmLocation).(string)
 	var resourceGroupName = state.Get(constants.ArmResourceGroupName).(string)
-	// var vmCaptureParameters = state.Get(constants.ArmVirtualMachineCaptureParameters).(*compute.VirtualMachineCaptureParameters)
-	// var imageParameters = state.Get(constants.ArmImageParameters).(*compute.Image)
-
-	// var isManagedImage = state.Get(constants.ArmIsManagedImage).(bool)
-	// var targetManagedImageResourceGroupName = state.Get(constants.ArmManagedImageResourceGroupName).(string)
-	// var targetManagedImageName = state.Get(constants.ArmManagedImageName).(string)
-	// var targetManagedImageLocation = state.Get(constants.ArmManagedImageLocation).(string)
 
 	s.say(fmt.Sprintf(" -> Compute ResourceGroupName : '%s'", resourceGroupName))
 	s.say(fmt.Sprintf(" -> Compute Name              : '%s'", computeName))
