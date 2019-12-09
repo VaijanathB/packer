@@ -78,7 +78,7 @@ func NewClientGCE(conf *jwt.Config, vaultOauth string) (*http.Client, error) {
 		// Auth with Vault Oauth
 		log.Printf("Using Vault to generate Oauth token.")
 		ts := OauthTokenSource{vaultOauth}
-		return oauth2.NewClient(oauth2.NoContext, ts), nil
+		return oauth2.NewClient(context.TODO(), ts), nil
 
 	} else if conf != nil && len(conf.PrivateKey) > 0 {
 		// Auth with AccountFile if provided
@@ -90,10 +90,10 @@ func NewClientGCE(conf *jwt.Config, vaultOauth string) (*http.Client, error) {
 		// Initiate an http.Client. The following GET request will be
 		// authorized and authenticated on the behalf of
 		// your service account.
-		client = conf.Client(oauth2.NoContext)
+		client = conf.Client(context.TODO())
 	} else {
 		log.Printf("[INFO] Requesting Google token via GCE API Default Client Token Source...")
-		client, err = google.DefaultClient(oauth2.NoContext, DriverScopes...)
+		client, err = google.DefaultClient(context.TODO(), DriverScopes...)
 		// The DefaultClient uses the DefaultTokenSource of the google lib.
 		// The DefaultTokenSource uses the "Application Default Credentials"
 		// It looks for credentials in the following places, preferring the first location found:
@@ -493,6 +493,10 @@ func (d *driverGCE) createWindowsPassword(errCh chan<- error, name, zone string,
 	dCopy := string(data)
 
 	instance, err := d.service.Instances.Get(d.projectId, zone, name).Do()
+	if err != nil {
+		errCh <- err
+		return
+	}
 	instance.Metadata.Items = append(instance.Metadata.Items, &compute.MetadataItems{Key: "windows-keys", Value: &dCopy})
 
 	op, err := d.service.Instances.SetMetadata(d.projectId, zone, name, &compute.Metadata{

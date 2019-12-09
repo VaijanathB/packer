@@ -1,4 +1,5 @@
 //go:generate struct-markdown
+//go:generate mapstructure-to-hcl2 -type Config
 
 // The amazonebs package contains a packer.Builder implementation that
 // builds AMIs for Amazon EC2.
@@ -12,6 +13,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	awscommon "github.com/hashicorp/packer/builder/amazon/common"
 	"github.com/hashicorp/packer/common"
 	"github.com/hashicorp/packer/helper/communicator"
@@ -51,6 +53,16 @@ type Config struct {
 	// engine](/docs/templates/engine.html), see [Build template
 	// data](#build-template-data) for more information.
 	VolumeRunTags awscommon.TagMap `mapstructure:"run_volume_tags"`
+	// Relevant only to Windows guests: If you set this flag, we'll add clauses
+	// to the launch_block_device_mappings that make sure ephemeral drives
+	// don't show up in the EC2 console. If you launched from the EC2 console,
+	// you'd get this automatically, but the SDK does not provide this service.
+	// For more information, see
+	// https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/InstanceStorage.html.
+	// Because we don't validate the OS type of your guest, it is up to you to
+	// make sure you don't set this for *nix guests; behavior may be
+	// unpredictable.
+	NoEphemeral bool `mapstructure:"no_ephemeral" required:"false"`
 
 	ctx interpolate.Context
 }
@@ -126,13 +138,14 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 	}
 
 	ec2conn := ec2.New(session)
-
+	iam := iam.New(session)
 	// Setup the state bag and initial state for the steps
 	state := new(multistep.BasicStateBag)
 	state.Put("config", &b.config)
 	state.Put("access_config", &b.config.AccessConfig)
 	state.Put("ami_config", &b.config.AMIConfig)
 	state.Put("ec2", ec2conn)
+	state.Put("iam", iam)
 	state.Put("awsSession", session)
 	state.Put("hook", hook)
 	state.Put("ui", ui)
@@ -149,7 +162,6 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			Debug:                             b.config.PackerDebug,
 			EbsOptimized:                      b.config.EbsOptimized,
 			ExpectedRootDevice:                "ebs",
-			IamInstanceProfile:                b.config.IamInstanceProfile,
 			InstanceInitiatedShutdownBehavior: b.config.InstanceInitiatedShutdownBehavior,
 			InstanceType:                      b.config.InstanceType,
 			SourceAMI:                         b.config.SourceAmi,
@@ -160,6 +172,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			UserData:                          b.config.UserData,
 			UserDataFile:                      b.config.UserDataFile,
 			VolumeTags:                        b.config.VolumeRunTags,
+			NoEphemeral:                       b.config.NoEphemeral,
 		}
 	} else {
 		instanceStep = &awscommon.StepRunSourceInstance{
@@ -171,7 +184,6 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			EbsOptimized:                      b.config.EbsOptimized,
 			EnableT2Unlimited:                 b.config.EnableT2Unlimited,
 			ExpectedRootDevice:                "ebs",
-			IamInstanceProfile:                b.config.IamInstanceProfile,
 			InstanceInitiatedShutdownBehavior: b.config.InstanceInitiatedShutdownBehavior,
 			InstanceType:                      b.config.InstanceType,
 			IsRestricted:                      b.config.IsChinaCloud() || b.config.IsGovCloud(),
@@ -180,6 +192,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			UserData:                          b.config.UserData,
 			UserDataFile:                      b.config.UserDataFile,
 			VolumeTags:                        b.config.VolumeRunTags,
+			NoEphemeral:                       b.config.NoEphemeral,
 		}
 	}
 
@@ -189,6 +202,8 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			DestAmiName:        b.config.AMIName,
 			ForceDeregister:    b.config.AMIForceDeregister,
 			AMISkipBuildRegion: b.config.AMISkipBuildRegion,
+			VpcId:              b.config.VpcId,
+			SubnetId:           b.config.SubnetId,
 		},
 		&awscommon.StepSourceAMIInfo{
 			SourceAmi:                b.config.SourceAmi,
@@ -216,6 +231,10 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 			SecurityGroupIds:       b.config.SecurityGroupIds,
 			CommConfig:             &b.config.RunConfig.Comm,
 			TemporarySGSourceCidrs: b.config.TemporarySGSourceCidrs,
+		},
+		&awscommon.StepIamInstanceProfile{
+			IamInstanceProfile:                        b.config.IamInstanceProfile,
+			TemporaryIamInstanceProfilePolicyDocument: b.config.TemporaryIamInstanceProfilePolicyDocument,
 		},
 		&awscommon.StepCleanupVolumes{
 			LaunchMappings: b.config.LaunchMappings,

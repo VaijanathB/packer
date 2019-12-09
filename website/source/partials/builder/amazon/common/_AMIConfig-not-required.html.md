@@ -5,10 +5,9 @@
     engine, see Build template
     data for more information.
     
--   `ami_virtualization_type` (string) - The description to set for the resulting AMI(s). By default this
-    description is empty. This is a [template
-    engine](../templates/engine.html), see [Build template
-    data](#build-template-data) for more information.
+-   `ami_virtualization_type` (string) - The type of virtualization for the AMI
+    you are building. This option is required to register HVM images. Can be
+    paravirtual (default) or hvm.
     
 -   `ami_users` ([]string) - A list of account IDs that have access to
     launch the resulting AMI(s). By default no additional users other than the
@@ -59,6 +58,10 @@
     copying a provisioned instance to an AMI. By default, Packer will keep the
     encryption setting to what it was in the source image. Setting false will
     result in an unencrypted image, and true will result in an encrypted one.
+    If you have used the `launch_block_device_mappings` to set an encryption
+    key and that key is the same as the one you want the image encrypted with
+    at the end, then you don't need to set this field; leaving it empty will
+    prevent an unnecessary extra copy step and save you some time.
     
 -   `kms_key_id` (string) - ID, alias or ARN of the KMS key to use for boot volume encryption. This
     only applies to the main `region`, other regions where the AMI will be

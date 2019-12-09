@@ -106,8 +106,8 @@ func (s *StepConnectSSH) waitForSSH(state multistep.StateBag, ctx context.Contex
 		pAddr = fmt.Sprintf("%s:%d", s.Config.SSHProxyHost, s.Config.SSHProxyPort)
 		if s.Config.SSHProxyUsername != "" {
 			pAuth = new(proxy.Auth)
-			pAuth.User = s.Config.SSHBastionUsername
-			pAuth.Password = s.Config.SSHBastionPassword
+			pAuth.User = s.Config.SSHProxyUsername
+			pAuth.Password = s.Config.SSHProxyPassword
 		}
 
 	}
@@ -215,6 +215,12 @@ func (s *StepConnectSSH) waitForSSH(state multistep.StateBag, ctx context.Contex
 			if strings.Contains(err.Error(), "authenticate") {
 				log.Printf(
 					"[DEBUG] Detected authentication error. Increasing handshake attempts.")
+				err = fmt.Errorf("Packer experienced an authentication error "+
+					"when trying to connect via SSH. This can happen if your "+
+					"username/password are wrong. You may want to double-check"+
+					" your credentials as part of your debugging process. "+
+					"original error: %s",
+					err)
 				handshakeAttempts += 1
 			}
 

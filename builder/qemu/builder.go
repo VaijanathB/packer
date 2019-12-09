@@ -1,4 +1,5 @@
 //go:generate struct-markdown
+//go:generate mapstructure-to-hcl2 -type Config
 
 package qemu
 
@@ -10,7 +11,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/packer/common"
@@ -146,9 +149,12 @@ type Config struct {
 	// one of the other listed interfaces. Using the `scsi` interface under
 	// these circumstances will cause the build to fail.
 	DiskInterface string `mapstructure:"disk_interface" required:"false"`
-	// The size, in megabytes, of the hard disk to create
-	// for the VM. By default, this is 40960 (40 GB).
-	DiskSize uint `mapstructure:"disk_size" required:"false"`
+	// The size in bytes of the hard disk of the VM. Suffix with the first
+	// letter of common byte types. Use "k" or "K" for kilobytes, "M" for
+	// megabytes, G for gigabytes, and T for terabytes. If no value is provided
+	// for disk_size, Packer uses a default of `40960M` (40 GB). If a disk_size
+	// number is provided with no units, Packer will default to Megabytes.
+	DiskSize string `mapstructure:"disk_size" required:"false"`
 	// The cache mode to use for disk. Allowed values include any of
 	// `writethrough`, `writeback`, `none`, `unsafe` or `directsync`. By
 	// default, this is set to `writeback`.
@@ -296,6 +302,10 @@ type Config struct {
 	// to qemu, allowing it to choose the default. This may be needed when running
 	// under macOS, and getting errors about sdl not being available.
 	UseDefaultDisplay bool `mapstructure:"use_default_display" required:"false"`
+	// What QEMU -display option to use. Defaults to gtk, use none to not pass the
+	// -display option allowing QEMU to choose the default. This may be needed when
+	// running under macOS, and getting errors about sdl not being available.
+	Display string `mapstructure:"display" required:"false"`
 	// The IP address that should be
 	// binded to for VNC. By default packer will use 127.0.0.1 for this. If you
 	// wish to bind to all interfaces use 0.0.0.0.
@@ -316,7 +326,6 @@ type Config struct {
 	// "BUILDNAME" is the name of the build. Currently, no file extension will be
 	// used unless it is specified in this option.
 	VMName string `mapstructure:"vm_name" required:"false"`
-
 	// These are deprecated, but we keep them around for BC
 	// TODO(@mitchellh): remove
 	SSHWaitTimeout time.Duration `mapstructure:"ssh_wait_timeout" required:"false"`
@@ -344,11 +353,27 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 
 	var errs *packer.MultiError
 	warnings := make([]string, 0)
-
 	errs = packer.MultiErrorAppend(errs, b.config.ShutdownConfig.Prepare(&b.config.ctx)...)
 
-	if b.config.DiskSize == 0 {
-		b.config.DiskSize = 40960
+	if b.config.DiskSize == "" || b.config.DiskSize == "0" {
+		b.config.DiskSize = "40960M"
+	} else {
+		// Make sure supplied disk size is valid
+		// (digits, plus an optional valid unit character). e.g. 5000, 40G, 1t
+		re := regexp.MustCompile(`^[\d]+(b|k|m|g|t){0,1}$`)
+		matched := re.MatchString(strings.ToLower(b.config.DiskSize))
+		if !matched {
+			errs = packer.MultiErrorAppend(errs, fmt.Errorf("Invalid disk size."))
+		} else {
+			// Okay, it's valid -- if it doesn't alreay have a suffix, then
+			// append "M" as the default unit.
+			re = regexp.MustCompile(`^[\d]+$`)
+			matched = re.MatchString(strings.ToLower(b.config.DiskSize))
+			if matched {
+				// Needs M added.
+				b.config.DiskSize = fmt.Sprintf("%sM", b.config.DiskSize)
+			}
+		}
 	}
 
 	if b.config.DiskCache == "" {
@@ -452,7 +477,6 @@ func (b *Builder) Prepare(raws ...interface{}) ([]string, error) {
 	if b.config.ISOSkipCache {
 		b.config.ISOChecksumType = "none"
 	}
-
 	isoWarnings, isoErrs := b.config.ISOConfig.Prepare(&b.config.ctx)
 	warnings = append(warnings, isoWarnings...)
 	errs = packer.MultiErrorAppend(errs, isoErrs...)
@@ -700,7 +724,7 @@ func (b *Builder) Run(ctx context.Context, ui packer.Ui, hook packer.Hook) (pack
 		artifact.state["diskPaths"] = diskpaths
 	}
 	artifact.state["diskType"] = b.config.Format
-	artifact.state["diskSize"] = uint64(b.config.DiskSize)
+	artifact.state["diskSize"] = b.config.DiskSize
 	artifact.state["domainType"] = b.config.Accelerator
 
 	return artifact, nil

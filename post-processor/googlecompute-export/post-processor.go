@@ -1,9 +1,12 @@
+//go:generate mapstructure-to-hcl2 -type Config
+
 package googlecomputeexport
 
 import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/packer/builder/googlecompute"
 	"github.com/hashicorp/packer/common"
@@ -27,8 +30,9 @@ type Config struct {
 	Subnetwork          string   `mapstructure:"subnetwork"`
 	VaultGCPOauthEngine string   `mapstructure:"vault_gcp_oauth_engine"`
 	Zone                string   `mapstructure:"zone"`
+	ServiceAccountEmail string   `mapstructure:"service_account_email"`
 
-	Account *jwt.Config
+	account *jwt.Config
 	ctx     interpolate.Context
 }
 
@@ -108,14 +112,14 @@ func (p *PostProcessor) PostProcess(ctx context.Context, ui packer.Ui, artifact 
 		if err != nil {
 			return nil, false, false, err
 		}
-		p.config.Account = cfg
+		p.config.account = cfg
 	}
 	if p.config.AccountFile != "" {
 		cfg, err := googlecompute.ProcessAccountFile(p.config.AccountFile)
 		if err != nil {
 			return nil, false, false, err
 		}
-		p.config.Account = cfg
+		p.config.account = cfg
 	}
 
 	// Set up exporter instance configuration.
@@ -136,7 +140,7 @@ func (p *PostProcessor) PostProcess(ctx context.Context, ui packer.Ui, artifact 
 		Metadata:             exporterMetadata,
 		Network:              p.config.Network,
 		NetworkProjectId:     builderProjectId,
-		RawStateTimeout:      "5m",
+		StateTimeout:         5 * time.Minute,
 		SourceImageFamily:    "debian-9-worker",
 		SourceImageProjectId: "compute-image-tools",
 		Subnetwork:           p.config.Subnetwork,
@@ -147,10 +151,12 @@ func (p *PostProcessor) PostProcess(ctx context.Context, ui packer.Ui, artifact 
 			"https://www.googleapis.com/auth/userinfo.email",
 		},
 	}
-	exporterConfig.CalcTimeout()
+	if p.config.ServiceAccountEmail != "" {
+		exporterConfig.ServiceAccountEmail = p.config.ServiceAccountEmail
+	}
 
 	driver, err := googlecompute.NewDriverGCE(ui, builderProjectId,
-		p.config.Account, p.config.VaultGCPOauthEngine)
+		p.config.account, p.config.VaultGCPOauthEngine)
 	if err != nil {
 		return nil, false, false, err
 	}

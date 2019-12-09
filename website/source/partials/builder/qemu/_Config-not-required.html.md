@@ -47,8 +47,11 @@
     one of the other listed interfaces. Using the `scsi` interface under
     these circumstances will cause the build to fail.
     
--   `disk_size` (uint) - The size, in megabytes, of the hard disk to create
-    for the VM. By default, this is 40960 (40 GB).
+-   `disk_size` (string) - The size in bytes of the hard disk of the VM. Suffix with the first
+    letter of common byte types. Use "k" or "K" for kilobytes, "M" for
+    megabytes, G for gigabytes, and T for terabytes. If no value is provided
+    for disk_size, Packer uses a default of `40960M` (40 GB). If a disk_size
+    number is provided with no units, Packer will default to Megabytes.
     
 -   `disk_cache` (string) - The cache mode to use for disk. Allowed values include any of
     `writethrough`, `writeback`, `none`, `unsafe` or `directsync`. By
@@ -196,6 +199,10 @@
 -   `use_default_display` (bool) - If true, do not pass a -display option
     to qemu, allowing it to choose the default. This may be needed when running
     under macOS, and getting errors about sdl not being available.
+    
+-   `display` (string) - What QEMU -display option to use. Defaults to gtk, use none to not pass the
+    -display option allowing QEMU to choose the default. This may be needed when
+    running under macOS, and getting errors about sdl not being available.
     
 -   `vnc_bind_address` (string) - The IP address that should be
     binded to for VNC. By default packer will use 127.0.0.1 for this. If you

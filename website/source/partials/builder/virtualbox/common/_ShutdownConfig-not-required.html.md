@@ -8,13 +8,20 @@
     since reboots may fail and specify the final shutdown command in your
     last script.
     
--   `shutdown_timeout` (string) - The amount of time to wait after executing the
+-   `shutdown_timeout` (duration string | ex: "1h5m2s") - The amount of time to wait after executing the
     shutdown_command for the virtual machine to actually shut down. If it
     doesn't shut down in this time, it is an error. By default, the timeout is
     5m or five minutes.
     
--   `post_shutdown_delay` (string) - The amount of time to wait after shutting
+-   `post_shutdown_delay` (duration string | ex: "1h5m2s") - The amount of time to wait after shutting
     down the virtual machine. If you get the error
     Error removing floppy controller, you might need to set this to 5m
     or so. By default, the delay is 0s or disabled.
+    
+-   `disable_shutdown` (bool) - Packer normally halts the virtual machine after all provisioners have
+    run when no `shutdown_command` is defined.  If this is set to `true`, Packer
+    *will not* halt the virtual machine but will assume that you will send the stop
+    signal yourself through the preseed.cfg or your final provisioner.
+    Packer will wait for a default of 5 minutes until the virtual machine is shutdown.
+    The timeout can be changed using `shutdown_timeout` option.
     

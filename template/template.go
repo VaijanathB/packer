@@ -1,3 +1,5 @@
+//go:generate mapstructure-to-hcl2 -type Provisioner
+
 package template
 
 import (
@@ -24,6 +26,7 @@ type Template struct {
 	SensitiveVariables []*Variable
 	Builders           map[string]*Builder
 	Provisioners       []*Provisioner
+	CleanupProvisioner *Provisioner
 	PostProcessors     [][]*PostProcessor
 
 	// RawContents is just the raw data for this template
